@@ -224,13 +224,13 @@ create table public.settings (
   telegram_chat_id text,
   alert_email text,
   email_smtp_config jsonb,
-  randomization_settings jsonb not null default '{
-    "max_per_tick_default": 3,
-    "gap_probability_floor": 0.15,
-    "burst_probability_2": 0.20,
-    "burst_probability_3": 0.05,
-    "intra_bucket_jitter": "uniform"
-  }'::jsonb,
+  randomization_settings jsonb not null default jsonb_build_object(
+    'max_per_tick_default', 3,
+    'gap_probability_floor', 0.15,
+    'burst_probability_2', 0.20,
+    'burst_probability_3', 0.05,
+    'intra_bucket_jitter', 'uniform'
+  ),
   backup_retention_days integer not null default 365,
   make_ops_monthly_limit integer,
   worker_dead_after_minutes integer not null default 5,
