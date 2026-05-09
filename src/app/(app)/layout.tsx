@@ -1,6 +1,9 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { DbBanner } from "@/components/db-banner";
 
+/** Read Supabase env at request time (DO injects secrets at runtime; avoids stale static shell). */
+export const dynamic = "force-dynamic";
+
 export default function AppLayout({
   children,
 }: {
