@@ -33,8 +33,10 @@ async function ensureMasterLeadIds(
   return map;
 }
 
-export async function launchCampaignAction(raw: LaunchCampaignInput): Promise<{ campaignId: string }> {
-  const input = launchCampaignSchema.parse(raw);
+async function insertCampaignWithLeads(
+  input: LaunchCampaignInput,
+  status: "previewing" | "running"
+): Promise<{ campaignId: string; leadCount: number }> {
   const sb = requireServiceSupabase();
 
   const { data: ar, error: arErr } = await sb
@@ -102,7 +104,7 @@ export async function launchCampaignAction(raw: LaunchCampaignInput): Promise<{ 
       name: input.name,
       autoresponder_id: input.autoresponderId,
       tag: input.tag,
-      status: "running",
+      status,
       total_leads: withMx.length,
       sent_count: 0,
       failed_count: 0,
@@ -117,7 +119,7 @@ export async function launchCampaignAction(raw: LaunchCampaignInput): Promise<{ 
       quiet_hours_end: input.quietHoursEnabled ? input.quietEnd : null,
       quiet_hours_tz: input.quietTz,
       source_label: input.sourceLabel ?? null,
-      launched_at: new Date().toISOString(),
+      launched_at: status === "running" ? new Date().toISOString() : null,
     })
     .select("id")
     .single();
@@ -140,17 +142,106 @@ export async function launchCampaignAction(raw: LaunchCampaignInput): Promise<{ 
     if (insErr) throw new Error(insErr.message);
   }
 
+  return { campaignId, leadCount: withMx.length };
+}
+
+export async function createPreviewCampaignAction(
+  raw: LaunchCampaignInput
+): Promise<{ campaignId: string }> {
+  const input = launchCampaignSchema.parse(raw);
+  const { campaignId, leadCount } = await insertCampaignWithLeads(input, "previewing");
+
   await writeAuditLog({
-    action: "campaign_launched",
+    action: "campaign_preview_created",
     entityType: "campaign",
     entityId: campaignId,
-    details: { tag: input.tag, leads: withMx.length },
+    details: { tag: input.tag, leads: leadCount },
   });
 
   revalidatePath("/campaigns");
   revalidatePath("/");
   revalidatePath(`/campaigns/${campaignId}`);
   return { campaignId };
+}
+
+/** Direct launch (running) — kept for scripts or future “skip preview” flows. */
+export async function launchCampaignAction(raw: LaunchCampaignInput): Promise<{ campaignId: string }> {
+  const input = launchCampaignSchema.parse(raw);
+  const { campaignId, leadCount } = await insertCampaignWithLeads(input, "running");
+
+  await writeAuditLog({
+    action: "campaign_launched",
+    entityType: "campaign",
+    entityId: campaignId,
+    details: { tag: input.tag, leads: leadCount },
+  });
+
+  revalidatePath("/campaigns");
+  revalidatePath("/");
+  revalidatePath(`/campaigns/${campaignId}`);
+  return { campaignId };
+}
+
+export async function activatePreviewCampaignAction(campaignId: string, formData?: FormData) {
+  void formData;
+  const sb = requireServiceSupabase();
+  const { data: row, error: gErr } = await sb
+    .from("campaigns")
+    .select("id,status")
+    .eq("id", campaignId)
+    .maybeSingle();
+  if (gErr) throw new Error(gErr.message);
+  if (!row || row.status !== "previewing") {
+    throw new Error("Campaign is not in preview state.");
+  }
+
+  const { error } = await sb
+    .from("campaigns")
+    .update({
+      status: "running",
+      launched_at: new Date().toISOString(),
+    })
+    .eq("id", campaignId)
+    .eq("status", "previewing");
+  if (error) throw new Error(error.message);
+
+  await writeAuditLog({
+    action: "campaign_launched",
+    entityType: "campaign",
+    entityId: campaignId,
+    details: { from: "preview" },
+  });
+
+  revalidatePath("/campaigns");
+  revalidatePath(`/campaigns/${campaignId}`);
+  revalidatePath(`/campaigns/${campaignId}/preview`);
+}
+
+export async function discardPreviewCampaignAction(campaignId: string, formData?: FormData) {
+  void formData;
+  const sb = requireServiceSupabase();
+  const { data: row, error: gErr } = await sb
+    .from("campaigns")
+    .select("id,status")
+    .eq("id", campaignId)
+    .maybeSingle();
+  if (gErr) throw new Error(gErr.message);
+  if (!row || row.status !== "previewing") {
+    throw new Error("Only preview campaigns can be discarded.");
+  }
+
+  const { error } = await sb.from("campaigns").delete().eq("id", campaignId).eq("status", "previewing");
+  if (error) throw new Error(error.message);
+
+  await writeAuditLog({
+    action: "campaign_preview_discarded",
+    entityType: "campaign",
+    entityId: campaignId,
+    details: {},
+  });
+
+  revalidatePath("/campaigns");
+  revalidatePath(`/campaigns/${campaignId}/preview`);
 }
 
 export async function pauseCampaignAction(campaignId: string) {

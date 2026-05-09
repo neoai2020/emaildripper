@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { requireServiceSupabase } from "@/lib/db";
+import { checkRateLimit, clientIpFromRequest } from "@/lib/rate-limit";
 import { validateEmailMx } from "@/lib/mx/lookup";
 import { isValidEmailSyntax, normalizeEmail } from "@/lib/validation/email";
 
@@ -13,6 +14,11 @@ const bodySchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    const ip = clientIpFromRequest(req);
+    if (!checkRateLimit(`leads_import:${ip}`, 40, 60_000).ok) {
+      return NextResponse.json({ ok: false, error: "rate_limit" }, { status: 429 });
+    }
+
     const json = await req.json();
     const { emails: raw } = bodySchema.parse(json);
 

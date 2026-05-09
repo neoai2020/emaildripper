@@ -77,12 +77,22 @@ export default async function CampaignsPage() {
                       {sent}/{total} sent · {failed} failed · {donePct}%
                     </TableCell>
                     <TableCell className="text-right">
-                      <Link
-                        href={`/campaigns/${r.id}`}
-                        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-                      >
-                        View
-                      </Link>
+                      <div className="flex justify-end gap-2">
+                        {r.status === "previewing" ? (
+                          <Link
+                            href={`/campaigns/${r.id}/preview`}
+                            className={cn(buttonVariants({ variant: "default", size: "sm" }))}
+                          >
+                            Preview
+                          </Link>
+                        ) : null}
+                        <Link
+                          href={`/campaigns/${r.id}`}
+                          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                        >
+                          View
+                        </Link>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

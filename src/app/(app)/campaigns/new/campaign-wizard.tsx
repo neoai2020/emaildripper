@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-import { launchCampaignAction } from "@/app/(app)/campaigns/actions";
+import { createPreviewCampaignAction } from "@/app/(app)/campaigns/actions";
+import { HelpTip } from "@/components/help-tip";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -105,7 +106,7 @@ export function CampaignWizard({ autoresponders }: { autoresponders: Ar[] }) {
     setStep((s) => Math.max(1, s - 1));
   }
 
-  function launch() {
+  function createPreview() {
     if (!selectedAr) return;
     if (!tag.trim()) {
       toast.error("Tag is required.");
@@ -114,7 +115,7 @@ export function CampaignWizard({ autoresponders }: { autoresponders: Ar[] }) {
     const startsAtIso = new Date(startsAtLocal).toISOString();
     startTransition(async () => {
       try {
-        const { campaignId } = await launchCampaignAction({
+        const { campaignId } = await createPreviewCampaignAction({
           name: name.trim(),
           sourceLabel: sourceLabel.trim() || null,
           autoresponderId,
@@ -128,11 +129,11 @@ export function CampaignWizard({ autoresponders }: { autoresponders: Ar[] }) {
           maxConcurrentPerTick,
           tag: tag.trim(),
         });
-        toast.success("Campaign launched");
-        router.push(`/campaigns/${campaignId}`);
+        toast.success("Preview ready — review schedule, then launch.");
+        router.push(`/campaigns/${campaignId}/preview`);
         router.refresh();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Launch failed");
+        toast.error(e instanceof Error ? e.message : "Preview failed");
       }
     });
   }
@@ -150,8 +151,8 @@ export function CampaignWizard({ autoresponders }: { autoresponders: Ar[] }) {
               Next
             </Button>
           ) : (
-            <Button type="button" onClick={launch} disabled={pending}>
-              {pending ? "Launching…" : "Launch campaign"}
+            <Button type="button" onClick={createPreview} disabled={pending}>
+              {pending ? "Building preview…" : "Build preview"}
             </Button>
           )}
         </div>
@@ -302,7 +303,7 @@ export function CampaignWizard({ autoresponders }: { autoresponders: Ar[] }) {
       {step === 5 ? (
         <Card>
           <CardHeader>
-            <CardTitle>Tag & launch</CardTitle>
+            <CardTitle>Tag & preview</CardTitle>
             <CardDescription>Tags must be unique across all campaigns.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -312,11 +313,14 @@ export function CampaignWizard({ autoresponders }: { autoresponders: Ar[] }) {
               </Button>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="c-tag">Tag</Label>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="c-tag">Tag</Label>
+                <HelpTip id="campaign.tag" />
+              </div>
               <Input id="c-tag" value={tag} onChange={(e) => setTag(e.target.value)} className="font-mono text-xs" />
             </div>
             <p className="text-xs text-muted-foreground">
-              MX validation runs on launch; suppressed emails are removed automatically.
+              MX validation runs now; suppressed emails are removed before the preview is created.
             </p>
           </CardContent>
         </Card>

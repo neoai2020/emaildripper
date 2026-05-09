@@ -13,7 +13,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  activatePreviewCampaignAction,
   cancelCampaignAction,
+  discardPreviewCampaignAction,
   pauseCampaignAction,
   resumeCampaignAction,
 } from "@/app/(app)/campaigns/actions";
@@ -53,6 +55,26 @@ export default async function CampaignDetailPage({ params }: { params: { id: str
           <Link href="/campaigns" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
             All campaigns
           </Link>
+          {c.status === "previewing" ? (
+            <>
+              <Link
+                href={`/campaigns/${c.id}/preview`}
+                className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}
+              >
+                Pre-flight preview
+              </Link>
+              <form action={activatePreviewCampaignAction.bind(null, c.id)}>
+                <button type="submit" className={cn(buttonVariants({ size: "sm" }))}>
+                  Launch
+                </button>
+              </form>
+              <form action={discardPreviewCampaignAction.bind(null, c.id)}>
+                <button type="submit" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                  Discard preview
+                </button>
+              </form>
+            </>
+          ) : null}
           {c.status === "running" || c.status === "scheduled" ? (
             <form action={pauseCampaignAction.bind(null, c.id)}>
               <button type="submit" className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}>
@@ -67,7 +89,10 @@ export default async function CampaignDetailPage({ params }: { params: { id: str
               </button>
             </form>
           ) : null}
-          {c.status !== "cancelled" && c.status !== "completed" ? (
+          {c.status !== "cancelled" &&
+          c.status !== "completed" &&
+          c.status !== "previewing" &&
+          c.status !== "draft" ? (
             <form action={cancelCampaignAction.bind(null, c.id)}>
               <button type="submit" className={cn(buttonVariants({ variant: "destructive", size: "sm" }))}>
                 Cancel

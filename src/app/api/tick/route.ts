@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 
 import { requireServiceSupabase } from "@/lib/db";
 import { safeCompareToken, signMakePayload } from "@/lib/make-webhook";
+import { checkRateLimit, clientIpFromRequest } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -62,6 +63,11 @@ export async function GET(req: Request) {
   const expected = process.env.CRON_TOKEN ?? "";
   if (!expected || !safeCompareToken(token, expected)) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  }
+
+  const ip = clientIpFromRequest(req);
+  if (!checkRateLimit(`tick:${ip}`, 200, 60_000).ok) {
+    return NextResponse.json({ ok: false, error: "rate_limit" }, { status: 429 });
   }
 
   const started = Date.now();
