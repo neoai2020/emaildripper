@@ -6,6 +6,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { requireServiceSupabase } from "@/lib/db";
 import { validateEmailMx } from "@/lib/mx/lookup";
 import { launchCampaignSchema, type LaunchCampaignInput } from "@/lib/schemas/campaign";
+import { parseRandomizationSettings } from "@/lib/randomization-settings";
 import { buildFeelsHumanSchedule } from "@/lib/scheduler/feelsHuman";
 import { isValidEmailSyntax, normalizeEmail } from "@/lib/validation/email";
 
@@ -81,6 +82,13 @@ async function insertCampaignWithLeads(
 
   const endsAt = new Date(startsAt.getTime() + input.timeWindowHours * 3600_000);
 
+  const { data: settingsRow } = await sb
+    .from("settings")
+    .select("randomization_settings")
+    .eq("id", 1)
+    .maybeSingle();
+  const rand = parseRandomizationSettings(settingsRow?.randomization_settings);
+
   const schedule = buildFeelsHumanSchedule({
     count: withMx.length,
     windowStart: startsAt,
@@ -90,6 +98,9 @@ async function insertCampaignWithLeads(
     quietStart: input.quietStart,
     quietEnd: input.quietEnd,
     maxPerBucket: input.maxConcurrentPerTick,
+    gapFloor: rand.gapFloor,
+    burst2: rand.burst2,
+    burst3: rand.burst3,
   });
 
   if (schedule.length !== withMx.length) {
@@ -119,6 +130,7 @@ async function insertCampaignWithLeads(
       quiet_hours_end: input.quietHoursEnabled ? input.quietEnd : null,
       quiet_hours_tz: input.quietTz,
       source_label: input.sourceLabel ?? null,
+      source_csv_path: input.sourceCsvPath?.trim() || null,
       launched_at: status === "running" ? new Date().toISOString() : null,
     })
     .select("id")
@@ -326,4 +338,36 @@ export async function cancelCampaignAction(campaignId: string) {
   });
   revalidatePath(`/campaigns/${campaignId}`);
   revalidatePath("/campaigns");
+}
+
+const MAX_CSV_UPLOAD_BYTES = 6 * 1024 * 1024;
+
+export async function uploadCampaignCsvAction(formData: FormData): Promise<{ path: string }> {
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("Choose a non-empty CSV file.");
+  }
+  if (file.size > MAX_CSV_UPLOAD_BYTES) {
+    throw new Error("CSV file is too large (max 6 MB).");
+  }
+
+  const sb = requireServiceSupabase();
+  const buf = Buffer.from(await file.arrayBuffer());
+  const safe = file.name.replace(/[^\w.\-]+/g, "_").slice(0, 96);
+  const path = `campaigns/${Date.now()}-${safe}`;
+
+  const { error } = await sb.storage.from("campaign-csv").upload(path, buf, {
+    contentType: file.type && file.type !== "application/octet-stream" ? file.type : "text/csv",
+    upsert: false,
+  });
+  if (error) throw new Error(error.message);
+
+  await writeAuditLog({
+    action: "campaign_csv_uploaded",
+    entityType: "storage",
+    entityId: null,
+    details: { path, bytes: buf.length },
+  });
+
+  return { path };
 }

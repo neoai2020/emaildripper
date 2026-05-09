@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Papa from "papaparse";
 import { toast } from "sonner";
 
-import { createPreviewCampaignAction } from "@/app/(app)/campaigns/actions";
+import { createPreviewCampaignAction, uploadCampaignCsvAction } from "@/app/(app)/campaigns/actions";
 import { HelpTip } from "@/components/help-tip";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +17,31 @@ import { normalizeEmail, isValidEmailSyntax } from "@/lib/validation/email";
 
 type Ar = { id: string; name: string };
 
-export function CampaignWizard({ autoresponders }: { autoresponders: Ar[] }) {
+export type CampaignTemplateRow = {
+  id: string;
+  name: string;
+  time_window_hours: number | null;
+  max_concurrent_per_tick: number | null;
+  quiet_hours_enabled: boolean | null;
+  quiet_hours_start: string | null;
+  quiet_hours_end: string | null;
+};
+
+function hm(t: string | null | undefined, fallback: string) {
+  if (!t) return fallback;
+  const s = String(t).trim();
+  return s.length >= 5 ? s.slice(0, 5) : fallback;
+}
+
+export function CampaignWizard({
+  autoresponders,
+  templates,
+  defaultTz,
+}: {
+  autoresponders: Ar[];
+  templates: CampaignTemplateRow[];
+  defaultTz: string;
+}) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [pending, startTransition] = useTransition();
@@ -37,9 +62,12 @@ export function CampaignWizard({ autoresponders }: { autoresponders: Ar[] }) {
   const [quietEnabled, setQuietEnabled] = useState(true);
   const [quietStart, setQuietStart] = useState("01:00");
   const [quietEnd, setQuietEnd] = useState("06:00");
-  const [quietTz, setQuietTz] = useState("Europe/Vienna");
+  const [quietTz, setQuietTz] = useState(defaultTz);
   const [maxConcurrentPerTick, setMaxConcurrentPerTick] = useState(3);
   const [tag, setTag] = useState("");
+  const [templateId, setTemplateId] = useState("");
+  const [sourceCsvPath, setSourceCsvPath] = useState<string | null>(null);
+  const [csvUploading, setCsvUploading] = useState(false);
 
   const selectedAr = useMemo(
     () => autoresponders.find((a) => a.id === autoresponderId),
@@ -69,6 +97,76 @@ export function CampaignWizard({ autoresponders }: { autoresponders: Ar[] }) {
     }
     return out;
   }, [emailsText]);
+
+  function applyTemplate(id: string) {
+    setTemplateId(id);
+    if (!id) return;
+    const t = templates.find((x) => x.id === id);
+    if (!t) return;
+    setTimeWindowHours(Number(t.time_window_hours ?? 48));
+    setMaxConcurrentPerTick(Number(t.max_concurrent_per_tick ?? 3));
+    setQuietEnabled(Boolean(t.quiet_hours_enabled));
+    setQuietStart(hm(t.quiet_hours_start, "01:00"));
+    setQuietEnd(hm(t.quiet_hours_end, "06:00"));
+    toast.success(`Applied template: ${t.name}`);
+  }
+
+  async function mergeEmailsFromCsvFile(file: File) {
+    const text = await file.text();
+    const res = Papa.parse<Record<string, string>>(text, {
+      header: true,
+      skipEmptyLines: true,
+    });
+    if (res.errors.length) {
+      toast.error(res.errors[0]?.message ?? "CSV parse error");
+      return;
+    }
+    const rows = res.data ?? [];
+    const fields = res.meta.fields ?? [];
+    const emailKey =
+      fields.find((k) => /email|e-mail/i.test(String(k))) ?? fields[0] ?? "email";
+    let added = 0;
+    setEmailsText((prev) => {
+      const seen = new Set<string>();
+      for (const line of prev.split(/\r?\n/)) {
+        const e = normalizeEmail(line.split(",")[0] ?? line);
+        if (isValidEmailSyntax(e)) seen.add(e);
+      }
+      const found: string[] = [];
+      for (const row of rows) {
+        const cell = row[emailKey]?.trim() ?? "";
+        if (!cell) continue;
+        const e = normalizeEmail(cell.split(",")[0] ?? cell);
+        if (!isValidEmailSyntax(e) || seen.has(e)) continue;
+        seen.add(e);
+        found.push(e);
+      }
+      if (found.length === 0) return prev;
+      added = found.length;
+      const base = prev.trim() ? `${prev.trim()}\n` : "";
+      return base + found.join("\n");
+    });
+    if (added === 0) {
+      toast.error("No new valid emails found in CSV.");
+      return;
+    }
+    toast.success(`Merged ${added} new email(s) from CSV`);
+  }
+
+  async function onArchiveCsvUpload(file: File) {
+    setCsvUploading(true);
+    try {
+      const fd = new FormData();
+      fd.set("file", file);
+      const { path } = await uploadCampaignCsvAction(fd);
+      setSourceCsvPath(path);
+      toast.success("CSV archived to Storage");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setCsvUploading(false);
+    }
+  }
 
   function regenerateTag() {
     if (!selectedAr || !name.trim()) {
@@ -128,6 +226,7 @@ export function CampaignWizard({ autoresponders }: { autoresponders: Ar[] }) {
           quietTz,
           maxConcurrentPerTick,
           tag: tag.trim(),
+          sourceCsvPath,
         });
         toast.success("Preview ready — review schedule, then launch.");
         router.push(`/campaigns/${campaignId}/preview`);
@@ -178,6 +277,24 @@ export function CampaignWizard({ autoresponders }: { autoresponders: Ar[] }) {
                 placeholder="blackfriday-list-2026"
               />
             </div>
+            {templates.length > 0 ? (
+              <div className="grid gap-2">
+                <Label htmlFor="c-tpl">Apply template (optional)</Label>
+                <select
+                  id="c-tpl"
+                  className="h-9 rounded-lg border border-input bg-transparent px-2 text-sm"
+                  value={templateId}
+                  onChange={(e) => applyTemplate(e.target.value)}
+                >
+                  <option value="">None</option>
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       ) : null}
@@ -218,9 +335,48 @@ export function CampaignWizard({ autoresponders }: { autoresponders: Ar[] }) {
         <Card>
           <CardHeader>
             <CardTitle>Leads</CardTitle>
-            <CardDescription>One email per line (max 5000 in this MVP slice).</CardDescription>
+            <CardDescription>
+              One email per line (max 5000), or import a CSV (header row with an “email” column). Optionally
+              archive the same CSV to Supabase Storage for audit.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
+            <div className="flex flex-wrap gap-3">
+              <div className="grid gap-1">
+                <Label htmlFor="c-csv-merge">Merge from CSV file</Label>
+                <input
+                  id="c-csv-merge"
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="max-w-xs text-xs file:mr-2 file:rounded file:border file:bg-muted file:px-2 file:py-1"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = "";
+                    if (f) void mergeEmailsFromCsvFile(f);
+                  }}
+                />
+              </div>
+              <div className="grid gap-1">
+                <Label htmlFor="c-csv-store">Archive CSV to Storage (optional)</Label>
+                <input
+                  id="c-csv-store"
+                  type="file"
+                  accept=".csv,text/csv"
+                  disabled={csvUploading}
+                  className="max-w-xs text-xs file:mr-2 file:rounded file:border file:bg-muted file:px-2 file:py-1"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = "";
+                    if (f) void onArchiveCsvUpload(f);
+                  }}
+                />
+              </div>
+            </div>
+            {sourceCsvPath ? (
+              <p className="font-mono text-[11px] text-muted-foreground">
+                Archived: {sourceCsvPath}
+              </p>
+            ) : null}
             <Textarea
               value={emailsText}
               onChange={(e) => setEmailsText(e.target.value)}

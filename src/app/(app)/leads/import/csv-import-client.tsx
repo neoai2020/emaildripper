@@ -13,7 +13,13 @@ import { Textarea } from "@/components/ui/textarea";
 
 type Col = { key: string; label: string };
 
-export function CsvImportClient() {
+export type CsvMappingOption = {
+  id: string;
+  name: string;
+  field_map: Record<string, unknown>;
+};
+
+export function CsvImportClient({ mappings }: { mappings: CsvMappingOption[] }) {
   const [text, setText] = useState("");
   const [cols, setCols] = useState<Col[]>([]);
   const [rows, setRows] = useState<string[][]>([]);
@@ -21,6 +27,32 @@ export function CsvImportClient() {
   const [sourceLabel, setSourceLabel] = useState("");
   const [checkResult, setCheckResult] = useState<Record<string, unknown> | null>(null);
   const [pending, startTransition] = useTransition();
+  const [mappingId, setMappingId] = useState("");
+
+  function applySavedMapping(id: string) {
+    setMappingId(id);
+    if (!id) return;
+    const m = mappings.find((x) => x.id === id);
+    if (!m) return;
+    if (cols.length === 0) {
+      toast.info("Parse CSV first, then pick a saved mapping.");
+      return;
+    }
+    const fm = m.field_map;
+    const headerRaw = fm.email ?? fm.Email ?? fm["email_address"];
+    const header = headerRaw != null ? String(headerRaw).trim() : "";
+    if (!header) {
+      toast.error('Mapping has no "email" key in field_map JSON.');
+      return;
+    }
+    const match = cols.find((c) => c.label.trim().toLowerCase() === header.toLowerCase());
+    if (!match) {
+      toast.error(`No column header matching “${header}”.`);
+      return;
+    }
+    setEmailCol(match.key);
+    toast.success(`Email column: ${match.label}`);
+  }
 
   const extracted = useMemo(() => {
     if (!emailCol || rows.length === 0) return [];
@@ -134,6 +166,23 @@ export function CsvImportClient() {
               ))}
             </select>
           </div>
+          {mappings.length > 0 ? (
+            <div className="grid gap-2 md:max-w-md">
+              <Label>Saved column mapping (optional)</Label>
+              <select
+                className="h-9 rounded-lg border border-input bg-transparent px-2 text-sm"
+                value={mappingId}
+                onChange={(e) => applySavedMapping(e.target.value)}
+              >
+                <option value="">None</option>
+                {mappings.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           <div className="grid gap-2 md:max-w-md">
             <Label htmlFor="src">Source label (optional)</Label>
             <Input id="src" value={sourceLabel} onChange={(e) => setSourceLabel(e.target.value)} />

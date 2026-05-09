@@ -182,7 +182,8 @@ export function RandomizationForm({ initial, defaultTz }: { initial: Rand; defau
 
         <Button type="submit">Save to database</Button>
         <p className="text-xs text-muted-foreground">
-          Campaign scheduling still uses per-wizard values today; saved JSON is ready for a future worker hook.
+          Gap/burst probabilities here are applied when building campaign schedules (with per-campaign max per tick
+          from the wizard).
         </p>
       </form>
     </div>

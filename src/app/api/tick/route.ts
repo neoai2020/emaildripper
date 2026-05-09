@@ -2,9 +2,12 @@ import { randomUUID } from "node:crypto";
 
 import { NextResponse } from "next/server";
 
+import type { ArCapRow } from "@/lib/autoresponder-caps";
+import { countSendsPerArToday, effectiveDailySendCap, utcDayStartIso } from "@/lib/autoresponder-caps";
 import { requireServiceSupabase } from "@/lib/db";
 import { safeCompareToken, signMakePayload } from "@/lib/make-webhook";
 import { checkRateLimit, clientIpFromRequest } from "@/lib/rate-limit";
+import { maybeSendFailureRateAlert } from "@/lib/tick-alerts";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -75,6 +78,15 @@ export async function GET(req: Request) {
   const now = new Date();
   const nowIso = now.toISOString();
 
+  const { data: settingsAlert } = await sb
+    .from("settings")
+    .select("telegram_bot_token,telegram_chat_id,failure_rate_alert_pct")
+    .eq("id", 1)
+    .maybeSingle();
+
+  const arSentToday = await countSendsPerArToday(sb, utcDayStartIso(now));
+  const arSuccessThisTick = new Map<string, number>();
+
   const { data: due, error: dueErr } = await sb
     .from("campaign_leads")
     .select(
@@ -98,6 +110,7 @@ export async function GET(req: Request) {
   if (rows.length === 0) {
     await sb.from("tick_log").insert({ leads_processed: 0, duration_ms: Date.now() - started, errors: 0 });
     await markCompletedCampaigns(sb);
+    await maybeSendFailureRateAlert(sb, settingsAlert ?? {}, 0, 0);
     return NextResponse.json({ ok: true, processed: 0, message: "no due leads" });
   }
 
@@ -141,6 +154,13 @@ export async function GET(req: Request) {
     if (!camp) continue;
     const ar = arMap.get(camp.autoresponder_id);
     if (!ar || !ar.is_active) continue;
+
+    const cap = effectiveDailySendCap(ar as ArCapRow, now);
+    if (cap != null) {
+      const used =
+        (arSentToday.get(ar.id as string) ?? 0) + (arSuccessThisTick.get(ar.id as string) ?? 0);
+      if (used >= cap) continue;
+    }
 
     const lock = randomUUID();
     const lockExpires = new Date(Date.now() + 60_000).toISOString();
@@ -206,6 +226,10 @@ export async function GET(req: Request) {
 
     if (ok) {
       processed++;
+      arSuccessThisTick.set(
+        ar.id as string,
+        (arSuccessThisTick.get(ar.id as string) ?? 0) + 1
+      );
       await sb
         .from("campaign_leads")
         .update({
@@ -264,6 +288,8 @@ export async function GET(req: Request) {
   });
 
   await markCompletedCampaigns(sb);
+
+  await maybeSendFailureRateAlert(sb, settingsAlert ?? {}, errors, processed);
 
   return NextResponse.json({ ok: true, processed, errors, ms: Date.now() - started });
 }

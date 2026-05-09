@@ -48,6 +48,15 @@ export default async function CampaignDetailPage({ params }: { params: { id: str
             <Badge variant="outline">{c.status}</Badge>
             <span className="text-sm text-muted-foreground">
               {c.sent_count}/{c.total_leads} sent · {c.failed_count} failed
+              {c.source_csv_path ? (
+                <>
+                  {" · "}
+                  <span className="font-mono text-[11px]" title="Supabase Storage path">
+                    csv: {String(c.source_csv_path).slice(0, 48)}
+                    {String(c.source_csv_path).length > 48 ? "…" : ""}
+                  </span>
+                </>
+              ) : null}
             </span>
           </div>
         </div>

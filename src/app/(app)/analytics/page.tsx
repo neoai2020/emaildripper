@@ -21,19 +21,37 @@ export default async function AnalyticsPage() {
 
   const since = subDays(new Date(), 14).toISOString();
 
-  const [{ data: leads, error: lErr }, { data: ticks, error: tErr }, { data: ars }] = await Promise.all([
-    sb
-      .from("campaign_leads")
-      .select("sent_at,campaign_id")
-      .eq("status", "sent")
-      .not("sent_at", "is", null)
-      .gte("sent_at", since)
-      .limit(8000),
-    sb.from("tick_log").select("id,at,leads_processed,errors,duration_ms").order("at", { ascending: false }).limit(20),
-    sb.from("autoresponders").select("id,name"),
-  ]);
+  const [{ data: leads, error: lErr }, { data: ticks, error: tErr }, { data: ars }, { data: failedRows, error: fErr }] =
+    await Promise.all([
+      sb
+        .from("campaign_leads")
+        .select("sent_at,campaign_id")
+        .eq("status", "sent")
+        .not("sent_at", "is", null)
+        .gte("sent_at", since)
+        .limit(8000),
+      sb.from("tick_log").select("id,at,leads_processed,errors,duration_ms").order("at", { ascending: false }).limit(20),
+      sb.from("autoresponders").select("id,name"),
+      sb
+        .from("campaign_lead_logs")
+        .select("error_message,attempted_at")
+        .eq("outcome", "failure")
+        .gte("attempted_at", since)
+        .limit(4000),
+    ]);
   if (lErr) throw new Error(lErr.message);
   if (tErr) throw new Error(tErr.message);
+  if (fErr) throw new Error(fErr.message);
+
+  const failByMsg = new Map<string, number>();
+  for (const r of failedRows ?? []) {
+    const k = (r.error_message as string | null)?.trim() || "(no message)";
+    failByMsg.set(k, (failByMsg.get(k) ?? 0) + 1);
+  }
+  const failTable = Array.from(failByMsg.entries())
+    .map(([message, count]) => ({ message, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 12);
 
   const arName = new Map((ars ?? []).map((a) => [a.id as string, a.name as string]));
   const campIds = Array.from(new Set((leads ?? []).map((r) => r.campaign_id as string)));
@@ -75,7 +93,10 @@ export default async function AnalyticsPage() {
 
   return (
     <>
-      <PageHeader title="Analytics" description="Last 14 days of successful sends and recent tick health." />
+      <PageHeader
+        title="Analytics"
+        description="Last 14 days of sends, webhook attempt failures (from lead logs), and recent tick health."
+      />
 
       <div className="mt-8 grid gap-8 lg:grid-cols-2">
         <div className="rounded-xl border border-border/80 p-4">
@@ -89,6 +110,36 @@ export default async function AnalyticsPage() {
           ) : (
             <SendsByArChart data={arRows} />
           )}
+        </div>
+      </div>
+
+      <div className="mt-10">
+        <h2 className="mb-3 font-heading text-sm font-semibold">Webhook failures (14d, by log message)</h2>
+        <div className="rounded-xl border border-border/80">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>error_message</TableHead>
+                <TableHead className="text-right">Count</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {failTable.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={2} className="py-8 text-center text-sm text-muted-foreground">
+                    No failed leads in this window.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                failTable.map((r) => (
+                  <TableRow key={r.message}>
+                    <TableCell className="max-w-md truncate font-mono text-xs">{r.message}</TableCell>
+                    <TableCell className="text-right font-mono text-xs">{r.count}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
       </div>
 

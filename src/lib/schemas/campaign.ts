@@ -13,6 +13,8 @@ export const launchCampaignSchema = z.object({
   quietTz: z.string().min(1),
   maxConcurrentPerTick: z.coerce.number().int().min(1).max(10).default(3),
   tag: z.string().min(3).max(200),
+  /** Storage path in `campaign-csv` bucket when user uploaded a source file */
+  sourceCsvPath: z.string().max(500).optional().nullable(),
 });
 
 export type LaunchCampaignInput = z.infer<typeof launchCampaignSchema>;
