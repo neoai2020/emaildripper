@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getServiceSupabase } from "@/lib/db";
+import { formatUtcDateTime } from "@/lib/format-display";
 import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 
 import { DailySendsChart, SendsByArChart } from "./analytics-charts";
@@ -166,8 +167,8 @@ export default async function AnalyticsPage() {
               ) : (
                 ticks!.map((r) => (
                   <TableRow key={String(r.id ?? r.at)}>
-                    <TableCell className="font-mono text-[11px]">
-                      {r.at ? new Date(r.at as string).toISOString() : "—"}
+                    <TableCell className="text-[11px] tabular-nums text-muted-foreground">
+                      {formatUtcDateTime(r.at as string | null, { seconds: true })}
                     </TableCell>
                     <TableCell className="font-mono text-xs">{r.leads_processed}</TableCell>
                     <TableCell className="font-mono text-xs">{r.errors}</TableCell>

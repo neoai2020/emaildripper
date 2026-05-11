@@ -70,6 +70,7 @@ export function DangerZoneClient() {
         body="Removes rows in status previewing only (and their campaign_leads via cascade)."
         phrase="DELETE PREVIEWS"
         action={deletePreviewCampaignsAction}
+        variant="destructive"
       />
       <DangerBlock
         title="Delete all campaigns"
@@ -90,6 +91,7 @@ export function DangerZoneClient() {
         body="Removes worker tick_log history (useful after noisy testing)."
         phrase="CLEAR TICK LOG"
         action={clearTickLogAction}
+        variant="destructive"
       />
       <DangerBlock
         title="Reset global settings"

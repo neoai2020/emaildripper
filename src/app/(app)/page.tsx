@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getServiceSupabase } from "@/lib/db";
+import { formatUtcDateTime } from "@/lib/format-display";
 export default async function DashboardPage() {
   const sb = getServiceSupabase();
 
@@ -97,7 +98,7 @@ export default async function DashboardPage() {
         activeCampaigns={sb ? String(activeCampaigns) : "—"}
         sentToday={sb ? String(sentToday) : "—"}
         failedLast24h={sb ? String(failedLast24h) : "—"}
-        lastTickAt={sb && lastTickAt ? new Date(lastTickAt).toISOString() : "—"}
+        lastTickAt={sb && lastTickAt ? formatUtcDateTime(lastTickAt, { seconds: true }) : "—"}
         makeOpsEstimate={sb ? makeOpsEstimate : "—"}
         makeOpsLimit={makeOpsLimit != null ? String(makeOpsLimit) : null}
       />

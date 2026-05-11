@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { getServiceSupabase } from "@/lib/db";
+import { humanizeStatus } from "@/lib/format-display";
 import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 import { cn } from "@/lib/utils";
 
@@ -72,7 +73,7 @@ export default async function CampaignsPage() {
                     <TableCell className="font-medium">{r.name}</TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">{r.tag}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{r.status}</Badge>
+                      <Badge variant="outline">{humanizeStatus(r.status as string)}</Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {sent}/{total} sent · {failed} failed · {donePct}%

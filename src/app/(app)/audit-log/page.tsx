@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getServiceSupabase } from "@/lib/db";
+import { formatUtcDateTime, humanizeStatus } from "@/lib/format-display";
 import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 import { cn } from "@/lib/utils";
 
@@ -96,12 +97,12 @@ export default async function AuditLogPage({
             ) : (
               rows!.map((r) => (
                 <TableRow key={String(r.id)}>
-                  <TableCell className="whitespace-nowrap font-mono text-[11px] text-muted-foreground">
-                    {r.at ? new Date(r.at as string).toISOString() : "—"}
+                  <TableCell className="whitespace-nowrap text-[11px] text-muted-foreground tabular-nums">
+                    {formatUtcDateTime(r.at as string | null, { seconds: true })}
                   </TableCell>
-                  <TableCell className="text-xs">{r.action}</TableCell>
-                  <TableCell className="text-xs">{r.entity_type}</TableCell>
-                  <TableCell className="max-w-[100px] truncate font-mono text-[10px] text-muted-foreground">
+                  <TableCell className="text-xs">{humanizeStatus(r.action as string)}</TableCell>
+                  <TableCell className="text-xs">{humanizeStatus(r.entity_type as string)}</TableCell>
+                  <TableCell className="max-w-[min(28vw,200px)] truncate font-mono text-[10px] text-muted-foreground" title={r.entity_id ? String(r.entity_id) : undefined}>
                     {r.entity_id ? String(r.entity_id) : "—"}
                   </TableCell>
                   <TableCell className="max-w-md truncate text-[11px] text-muted-foreground">

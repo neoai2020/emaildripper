@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getServiceSupabase } from "@/lib/db";
+import { formatUtcDateTime } from "@/lib/format-display";
 import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 
 import { addSuppressionAction } from "./actions";
@@ -55,7 +56,7 @@ export default async function SuppressionPage() {
               <TableHead>Email</TableHead>
               <TableHead>Reason</TableHead>
               <TableHead>Source</TableHead>
-              <TableHead>Added</TableHead>
+              <TableHead>Added (UTC)</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -69,10 +70,10 @@ export default async function SuppressionPage() {
               rows!.map((r) => (
                 <TableRow key={r.email}>
                   <TableCell className="font-mono text-xs">{r.email}</TableCell>
-                  <TableCell className="text-xs">{r.reason}</TableCell>
-                  <TableCell className="text-xs">{r.source}</TableCell>
-                  <TableCell className="font-mono text-[11px] text-muted-foreground">
-                    {r.added_at ? new Date(r.added_at).toISOString() : "—"}
+                  <TableCell className="text-xs">{r.reason ?? "—"}</TableCell>
+                  <TableCell className="text-xs">{r.source ?? "—"}</TableCell>
+                  <TableCell className="text-[11px] text-muted-foreground tabular-nums">
+                    {formatUtcDateTime(r.added_at as string | null)}
                   </TableCell>
                 </TableRow>
               ))

@@ -8,6 +8,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getServiceSupabase } from "@/lib/db";
+import { formatUtcDateTime } from "@/lib/format-display";
 import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 
 export default async function MasterLeadsPage() {
@@ -34,7 +35,7 @@ export default async function MasterLeadsPage() {
               <TableHead>Email</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Source</TableHead>
-              <TableHead>First seen</TableHead>
+              <TableHead>First seen (UTC)</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -52,8 +53,8 @@ export default async function MasterLeadsPage() {
                     {[r.first_name, r.last_name].filter(Boolean).join(" ") || "—"}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{r.source_label ?? "—"}</TableCell>
-                  <TableCell className="font-mono text-[11px] text-muted-foreground">
-                    {r.first_seen_at ? new Date(r.first_seen_at).toISOString() : "—"}
+                  <TableCell className="text-[11px] text-muted-foreground tabular-nums">
+                    {formatUtcDateTime(r.first_seen_at as string | null)}
                   </TableCell>
                 </TableRow>
               ))

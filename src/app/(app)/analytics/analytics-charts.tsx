@@ -1,5 +1,6 @@
 "use client";
 
+import { format, parseISO } from "date-fns";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 export function DailySendsChart({ data }: { data: { day: string; sends: number }[] }) {
@@ -8,17 +9,22 @@ export function DailySendsChart({ data }: { data: { day: string; sends: number }
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
-          <XAxis dataKey="day" tick={{ fontSize: 10 }} />
+          <XAxis
+            dataKey="day"
+            tick={{ fontSize: 10 }}
+            tickFormatter={(day) => format(parseISO(String(day)), "MMM d")}
+          />
           <YAxis allowDecimals={false} width={28} tick={{ fontSize: 10 }} />
           <Tooltip
             contentStyle={{
-              background: "hsl(var(--popover))",
-              border: "1px solid hsl(var(--border))",
+              background: "var(--popover)",
+              color: "var(--popover-foreground)",
+              border: "1px solid var(--border)",
               borderRadius: 8,
               fontSize: 12,
             }}
           />
-          <Bar dataKey="sends" name="Sends" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="sends" name="Sends" fill="var(--primary)" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -39,13 +45,14 @@ export function SendsByArChart({
           <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 10 }} />
           <Tooltip
             contentStyle={{
-              background: "hsl(var(--popover))",
-              border: "1px solid hsl(var(--border))",
+              background: "var(--popover)",
+              color: "var(--popover-foreground)",
+              border: "1px solid var(--border)",
               borderRadius: 8,
               fontSize: 12,
             }}
           />
-          <Bar dataKey="sends" name="Sends (14d)" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+          <Bar dataKey="sends" name="Sends (14d)" fill="var(--primary)" radius={[0, 4, 4, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

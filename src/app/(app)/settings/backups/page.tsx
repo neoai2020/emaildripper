@@ -31,7 +31,7 @@ export default async function SettingsBackupsPage() {
         <p>
           <Link
             href="https://supabase.com/docs/guides/platform/backups"
-            className="text-primary underline-offset-4 hover:underline"
+            className="font-medium text-primary underline decoration-primary/40 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             Supabase backup documentation
           </Link>

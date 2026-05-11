@@ -84,7 +84,7 @@ export default async function CampaignTemplatesPage() {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Window h</TableHead>
-              <TableHead>MPT</TableHead>
+              <TableHead title="Max sends each time the timer runs">Per tick</TableHead>
               <TableHead>Quiet</TableHead>
               <TableHead className="text-right">Delete</TableHead>
             </TableRow>

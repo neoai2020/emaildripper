@@ -231,7 +231,7 @@ export function CsvImportClient({ mappings }: { mappings: CsvMappingOption[] }) 
         className="font-mono text-xs"
         placeholder={"email,first name\nyou@example.com,Jane"}
       />
-      <Button type="button" variant="secondary" onClick={parseCsv} disabled={pending || !text.trim()}>
+      <Button type="button" onClick={parseCsv} disabled={pending || !text.trim()}>
         Parse CSV
       </Button>
 

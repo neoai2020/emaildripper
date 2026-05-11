@@ -8,7 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { createCsvMappingAction } from "../actions";
 
-const defaultJson = "{}";
+const defaultJson = `{
+  "Email": "email",
+  "First Name": "first_name"
+}`;
 
 export function CsvMappingCreateForm() {
   return (
@@ -19,7 +22,7 @@ export function CsvMappingCreateForm() {
       </div>
       <div className="grid gap-2">
         <div className="flex items-center gap-2">
-          <Label htmlFor="m-json">Column map (spreadsheet heading per line)</Label>
+          <Label htmlFor="m-json">Column map (JSON)</Label>
           <HelpTip id="csv.fieldMap" />
         </div>
         <Textarea
@@ -30,8 +33,11 @@ export function CsvMappingCreateForm() {
           defaultValue={defaultJson}
         />
         <p className="text-xs text-muted-foreground">
-          Each line pairs one spreadsheet column title with a field name: use email, first_name, or last_name where
-          those apply; any other label is kept as an extra field on the address.
+          Each key is the exact spreadsheet column heading; each value is the app field name. Use{" "}
+          <span className="font-mono text-foreground/80">email</span>,{" "}
+          <span className="font-mono text-foreground/80">first_name</span>, or{" "}
+          <span className="font-mono text-foreground/80">last_name</span> where those apply; any other value is stored
+          as a custom field on the lead.
         </p>
       </div>
       <Button type="submit">Save mapping</Button>

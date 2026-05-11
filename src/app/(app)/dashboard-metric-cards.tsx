@@ -76,7 +76,7 @@ export function DashboardMetricCards({
           <CardDescription>Last time the sending worker ran</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="font-mono text-sm font-medium leading-snug text-foreground">{lastTickAt}</p>
+          <p className="text-sm font-medium leading-snug text-foreground tabular-nums">{lastTickAt}</p>
         </CardContent>
       </Card>
 

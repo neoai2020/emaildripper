@@ -76,7 +76,7 @@ export default async function AutorespondersPage() {
                   <TableCell className="text-sm text-muted-foreground">{r.account_email}</TableCell>
                   <TableCell>
                     <Badge variant={r.is_active ? "default" : "secondary"}>
-                      {r.is_active ? "active" : "inactive"}
+                      {r.is_active ? "Active" : "Inactive"}
                     </Badge>
                     {r.warmup_enabled ? (
                       <Badge variant="outline" className="ml-2">

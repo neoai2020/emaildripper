@@ -15,6 +15,7 @@ import {
 import { cancelCampaignAction, discardPreviewCampaignAction, pauseCampaignAction } from "@/app/(app)/campaigns/actions";
 import { ResumeCampaignPanel } from "@/app/(app)/campaigns/[id]/resume-campaign-panel";
 import { getServiceSupabase } from "@/lib/db";
+import { formatUtcDateTime, humanizeStatus } from "@/lib/format-display";
 import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 import { cn } from "@/lib/utils";
 
@@ -52,7 +53,7 @@ export default async function CampaignDetailPage({ params }: { params: { id: str
         <div>
           <PageHeader title={c.name} description={`Campaign tag: ${c.tag}`} />
           <div className="mt-2 flex flex-wrap gap-2">
-            <Badge variant="outline">{c.status}</Badge>
+            <Badge variant="outline">{humanizeStatus(c.status as string)}</Badge>
             <span className="text-sm text-muted-foreground">
               {c.sent_count}/{c.total_leads} sent · {c.failed_count} failed
               {c.source_csv_path ? (
@@ -118,8 +119,8 @@ export default async function CampaignDetailPage({ params }: { params: { id: str
             <TableRow>
               <TableHead>Email</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Scheduled</TableHead>
-              <TableHead>Sent</TableHead>
+              <TableHead>Scheduled (UTC)</TableHead>
+              <TableHead>Sent (UTC)</TableHead>
               <TableHead>Attempts</TableHead>
               <TableHead>HTTP</TableHead>
             </TableRow>
@@ -135,12 +136,12 @@ export default async function CampaignDetailPage({ params }: { params: { id: str
               leads!.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell className="font-mono text-xs">{r.email}</TableCell>
-                  <TableCell className="text-xs">{r.status}</TableCell>
-                  <TableCell className="font-mono text-[11px] text-muted-foreground">
-                    {r.scheduled_at ? new Date(r.scheduled_at).toISOString() : "—"}
+                  <TableCell className="text-xs">{humanizeStatus(r.status as string)}</TableCell>
+                  <TableCell className="text-[11px] text-muted-foreground tabular-nums">
+                    {formatUtcDateTime(r.scheduled_at as string | null)}
                   </TableCell>
-                  <TableCell className="font-mono text-[11px] text-muted-foreground">
-                    {r.sent_at ? new Date(r.sent_at).toISOString() : "—"}
+                  <TableCell className="text-[11px] text-muted-foreground tabular-nums">
+                    {formatUtcDateTime(r.sent_at as string | null)}
                   </TableCell>
                   <TableCell className="font-mono text-xs">{r.attempt_count}</TableCell>
                   <TableCell className="font-mono text-xs">{r.make_response_status ?? "—"}</TableCell>

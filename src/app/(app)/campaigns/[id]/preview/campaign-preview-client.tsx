@@ -19,6 +19,7 @@ import {
   activatePreviewCampaignAction,
   discardPreviewCampaignAction,
 } from "@/app/(app)/campaigns/actions";
+import { formatUtcDateTime } from "@/lib/format-display";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -120,9 +121,8 @@ export function CampaignPreviewClient({
             </div>
             <div className="flex justify-between gap-4">
               <dt>Window (UTC)</dt>
-              <dd className="max-w-[220px] text-right font-mono text-[10px] text-foreground">
-                {summary.startsAt ? new Date(summary.startsAt).toISOString() : "—"} →{" "}
-                {summary.endsAt ? new Date(summary.endsAt).toISOString() : "—"}
+              <dd className="max-w-[min(100%,260px)] text-right text-[11px] tabular-nums text-foreground">
+                {formatUtcDateTime(summary.startsAt)} → {formatUtcDateTime(summary.endsAt)}
               </dd>
             </div>
           </dl>
@@ -138,13 +138,14 @@ export function CampaignPreviewClient({
                 <YAxis allowDecimals={false} width={28} tick={{ fontSize: 10 }} />
                 <Tooltip
                   contentStyle={{
-                    background: "hsl(var(--popover))",
-                    border: "1px solid hsl(var(--border))",
+                    background: "var(--popover)",
+                    color: "var(--popover-foreground)",
+                    border: "1px solid var(--border)",
                     borderRadius: 8,
                     fontSize: 12,
                   }}
                 />
-                <Line type="monotone" dataKey="sends" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="sends" stroke="var(--primary)" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -162,13 +163,14 @@ export function CampaignPreviewClient({
                 <YAxis allowDecimals={false} width={32} tick={{ fontSize: 10 }} />
                 <Tooltip
                   contentStyle={{
-                    background: "hsl(var(--popover))",
-                    border: "1px solid hsl(var(--border))",
+                    background: "var(--popover)",
+                    color: "var(--popover-foreground)",
+                    border: "1px solid var(--border)",
                     borderRadius: 8,
                     fontSize: 12,
                   }}
                 />
-                <Bar dataKey="sends" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="sends" fill="var(--primary)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -197,8 +199,8 @@ export function CampaignPreviewClient({
               firstLeads.map((r) => (
                 <TableRow key={r.email + r.scheduled_at}>
                   <TableCell className="font-mono text-xs">{r.email}</TableCell>
-                  <TableCell className="font-mono text-[11px] text-muted-foreground">
-                    {new Date(r.scheduled_at).toISOString()}
+                  <TableCell className="text-[11px] text-muted-foreground tabular-nums">
+                    {formatUtcDateTime(r.scheduled_at)}
                   </TableCell>
                 </TableRow>
               ))

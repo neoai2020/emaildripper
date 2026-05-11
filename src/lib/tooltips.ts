@@ -94,7 +94,7 @@ export const TOOLTIPS = {
   },
   "csv.fieldMap": {
     title: "CSV field map",
-    body: "Match each spreadsheet column heading to a field in this app (email, first name, last name, or custom).",
+    body: "Paste a JSON object: keys are spreadsheet column headings (exact text), values are field names in this app (email, first_name, last_name, or any custom key).",
   },
   "scope.v11": {
     title: "Planned improvements",

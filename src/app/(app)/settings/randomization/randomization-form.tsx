@@ -94,13 +94,14 @@ export function RandomizationForm({ initial, defaultTz }: { initial: Rand; defau
               <YAxis allowDecimals={false} width={28} tick={{ fontSize: 10 }} />
               <Tooltip
                 contentStyle={{
-                  background: "hsl(var(--popover))",
-                  border: "1px solid hsl(var(--border))",
+                  background: "var(--popover)",
+                  color: "var(--popover-foreground)",
+                  border: "1px solid var(--border)",
                   borderRadius: 8,
                   fontSize: 12,
                 }}
               />
-              <Bar dataKey="sends" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="sends" fill="var(--primary)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

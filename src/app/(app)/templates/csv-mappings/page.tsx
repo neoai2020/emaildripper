@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getServiceSupabase } from "@/lib/db";
+import { formatUtcDateTime } from "@/lib/format-display";
 import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 
 import { CsvMappingCreateForm } from "./csv-mapping-create-form";
@@ -41,7 +42,7 @@ export default async function CsvMappingsPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Created</TableHead>
+              <TableHead>Created (UTC)</TableHead>
               <TableHead className="text-right">Delete</TableHead>
             </TableRow>
           </TableHeader>
@@ -56,8 +57,8 @@ export default async function CsvMappingsPage() {
               rows!.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">{r.name}</TableCell>
-                  <TableCell className="font-mono text-[11px] text-muted-foreground">
-                    {r.created_at ? new Date(r.created_at as string).toISOString() : "—"}
+                  <TableCell className="text-[11px] text-muted-foreground tabular-nums">
+                    {formatUtcDateTime(r.created_at as string | null)}
                   </TableCell>
                   <TableCell className="text-right">
                     <form action={deleteCsvMappingAction}>
