@@ -1,4 +1,8 @@
+import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -11,42 +15,63 @@ import { getServiceSupabase } from "@/lib/db";
 import { formatUtcDateTime } from "@/lib/format-display";
 import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 
-export default async function MasterLeadsPage() {
+function sanitizeQ(raw: string) {
+  return raw.replace(/[^a-zA-Z0-9@._+-]/g, "").slice(0, 120);
+}
+
+export default async function MasterLeadsPage({ searchParams }: { searchParams: { q?: string } }) {
   const sb = getServiceSupabase();
   if (!sb) {
     return <PageHeader title="Master leads" description={UNCONFIGURED_APP} />;
   }
 
-  const { data: rows, error } = await sb
+  const qRaw = (searchParams.q ?? "").trim();
+  const q = sanitizeQ(qRaw);
+
+  let query = sb
     .from("master_leads")
     .select("email,first_name,last_name,source_label,first_seen_at")
     .order("first_seen_at", { ascending: false })
     .limit(200);
+  if (q) query = query.ilike("email", `%${q}%`);
 
+  const { data: rows, error } = await query;
   if (error) throw new Error(error.message);
 
   return (
     <>
       <PageHeader title="Master leads" description="Every email ever imported. Up to 200 most recent addresses are shown here." />
-      <div className="rounded-xl border border-border/80">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Email</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead>First seen (UTC)</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(rows ?? []).length === 0 ? (
+
+      <form method="get" className="mb-6 flex max-w-md flex-wrap items-end gap-2">
+        <div className="grid flex-1 gap-1">
+          <Label htmlFor="ml-q">Search email</Label>
+          <Input id="ml-q" name="q" defaultValue={qRaw} placeholder="contains…" />
+        </div>
+        <Button type="submit" variant="outline">
+          Search
+        </Button>
+      </form>
+
+      {(rows ?? []).length === 0 ? (
+        <EmptyState
+          title="No master leads"
+          description="Import a CSV on the leads import page to seed addresses you can reuse across campaigns."
+          actionHref="/leads/import"
+          actionLabel="Import leads"
+        />
+      ) : (
+        <div className="rounded-xl border border-border/80">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={4} className="py-10 text-center text-sm text-muted-foreground">
-                  No master leads yet.
-                </TableCell>
+                <TableHead>Email</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Source</TableHead>
+                <TableHead>First seen (UTC)</TableHead>
               </TableRow>
-            ) : (
-              rows!.map((r) => (
+            </TableHeader>
+            <TableBody>
+              {rows!.map((r) => (
                 <TableRow key={r.email}>
                   <TableCell className="font-mono text-xs">{r.email}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
@@ -57,11 +82,11 @@ export default async function MasterLeadsPage() {
                     {formatUtcDateTime(r.first_seen_at as string | null)}
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </>
   );
 }

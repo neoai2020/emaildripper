@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { PageHeader } from "@/components/page-header";
 import { AuditExportButton } from "@/app/(app)/audit-log/audit-export-button";
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { getServiceSupabase } from "@/lib/db";
 import { formatUtcDateTime, humanizeStatus } from "@/lib/format-display";
+import { EmptyState } from "@/components/empty-state";
 import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 import { cn } from "@/lib/utils";
 
@@ -68,7 +70,9 @@ export default async function AuditLogPage({
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <PageHeader title="Audit log" description="Recent important changes in your account (last 150 entries, filterable)." />
         <div className="flex flex-wrap items-center gap-2">
-          <AuditFilterForm initial={rawFilter} />
+          <Suspense fallback={<div className="h-9 w-64 animate-pulse rounded-md bg-muted/40" />}>
+            <AuditFilterForm initial={rawFilter} />
+          </Suspense>
           <AuditExportButton />
           <Link href="/help" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
             Help
@@ -76,26 +80,25 @@ export default async function AuditLogPage({
         </div>
       </div>
 
-      <div className="rounded-xl border border-border/80">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>When (UTC)</TableHead>
-              <TableHead>Action</TableHead>
-              <TableHead>Entity</TableHead>
-              <TableHead>Id</TableHead>
-              <TableHead>Details</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(rows ?? []).length === 0 ? (
+      {(rows ?? []).length === 0 ? (
+        <EmptyState
+          title="No audit entries"
+          description="Actions will appear here as you use the app. Adjust the filter or export CSV from a populated window."
+        />
+      ) : (
+        <div className="rounded-xl border border-border/80">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
-                  No audit entries match this filter.
-                </TableCell>
+                <TableHead>When (UTC)</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>Entity</TableHead>
+                <TableHead>Id</TableHead>
+                <TableHead>Details</TableHead>
               </TableRow>
-            ) : (
-              rows!.map((r) => (
+            </TableHeader>
+            <TableBody>
+              {rows!.map((r) => (
                 <TableRow key={String(r.id)}>
                   <TableCell className="whitespace-nowrap text-[11px] text-muted-foreground tabular-nums">
                     {formatUtcDateTime(r.at as string | null, { seconds: true })}
@@ -109,11 +112,11 @@ export default async function AuditLogPage({
                     {summarizeAuditDetails(r.details)}
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </>
   );
 }

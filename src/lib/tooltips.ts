@@ -116,6 +116,62 @@ export const TOOLTIPS = {
     title: "Warmup",
     body: "When enabled, daily caps ramp using the warmup curve on the autoresponder — protects a cold domain/list.",
   },
+  "preview.arEmail": {
+    title: "Destination account",
+    body: "The autoresponder row’s account email label — Make still receives the webhook payload keyed by tag and lead id.",
+  },
+  "preview.firstSends": {
+    title: "First sends",
+    body: "Earliest scheduled rows after suppression and MX filtering — sanity-check spacing before launch or test posts.",
+  },
+  "preview.testSend": {
+    title: "Test send",
+    body: "Posts the first three pending leads to Make immediately so you can verify the scenario before the timer takes over.",
+  },
+  "wizard.dryRunSchedule": {
+    title: "Dry schedule",
+    body: "Computes the same feels-human timeline as a real preview but does not create a campaign or save leads in the database.",
+  },
+  "wizard.leadLimit": {
+    title: "How many to schedule",
+    body: "Caps how many MX-eligible unique addresses are included in the preview and launch — cannot exceed the eligible count from validation.",
+  },
+  "wizard.validation": {
+    title: "Validation report",
+    body: "Suppression, syntax, duplicate-in-file, and inbox-provider checks mirror the import flow so you know what will drop before scheduling.",
+  },
+  "suppression.csv": {
+    title: "CSV upload",
+    body: "Bulk-add suppressed addresses from a spreadsheet with an email column — counts new vs already listed vs invalid rows.",
+  },
+  "dashboard.activeTable": {
+    title: "Active table",
+    body: "Campaigns that can still produce sends. Pause stops new claims; resume shifts pending times forward by the pause duration.",
+  },
+  "dashboard.arCapBars": {
+    title: "Daily caps",
+    body: "Successful sends today (UTC) versus the effective cap for each autoresponder including warmup curves.",
+  },
+  "dashboard.tickSpark": {
+    title: "Tick spacing",
+    body: "Time between consecutive worker runs. Gaps over three minutes usually mean the external scheduler or hosting is misconfigured.",
+  },
+  "dashboard.failures": {
+    title: "Failures list",
+    body: "Leads that exhausted retries — inspect Make.com logs using the campaign id and email shown here.",
+  },
+  "dashboard.lastSuccess": {
+    title: "Last successful tick",
+    body: "Heartbeat when the worker finished a healthy pass — distinct from attempts that errored before completion.",
+  },
+  "help.feedback": {
+    title: "Helpfulness",
+    body: "Anonymous thumbs stored in the audit log so we know which help sections need work.",
+  },
+  "worker.idempotency": {
+    title: "At-least-once ticks",
+    body: "If a tick overlaps retries or your scheduler fires twice, the same lead might be attempted more than once — Make should treat webhook ids as idempotent where possible.",
+  },
 } as const;
 
 export type TooltipId = keyof typeof TOOLTIPS;

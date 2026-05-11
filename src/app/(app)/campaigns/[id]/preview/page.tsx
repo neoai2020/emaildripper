@@ -4,47 +4,17 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { buildHourlyBuckets } from "@/lib/campaign/hourlyBuckets";
 import { getServiceSupabase } from "@/lib/db";
 import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 import { cn } from "@/lib/utils";
 
-import { CampaignPreviewClient, type HourlyRow, type PreviewSummary } from "./campaign-preview-client";
-
-function buildHourlyBuckets(
-  startsAt: Date,
-  scheduledIso: string[],
-  windowHours: number
-): HourlyRow[] {
-  const bucketMs = 3600_000;
-  const windowEnd = startsAt.getTime() + windowHours * bucketMs;
-  const counts = new Map<number, number>();
-  const maxIdx = Math.max(0, Math.ceil((windowEnd - startsAt.getTime()) / bucketMs));
-
-  for (let i = 0; i <= maxIdx; i++) counts.set(i, 0);
-
-  for (const iso of scheduledIso) {
-    const t = new Date(iso).getTime();
-    if (t < startsAt.getTime() || t > windowEnd) continue;
-    const idx = Math.floor((t - startsAt.getTime()) / bucketMs);
-    counts.set(idx, (counts.get(idx) ?? 0) + 1);
-  }
-
-  const rows: HourlyRow[] = [];
-  for (let i = 0; i <= maxIdx; i++) {
-    rows.push({
-      hour: `+${i}h`,
-      sends: counts.get(i) ?? 0,
-    });
-  }
-  return rows;
-}
+import { CampaignPreviewClient, type PreviewSummary } from "./campaign-preview-client";
 
 export default async function CampaignPreviewPage({ params }: { params: { id: string } }) {
   const sb = getServiceSupabase();
   if (!sb) {
-    return (
-      <PageHeader title="Pre-flight preview" description={UNCONFIGURED_APP} />
-    );
+    return <PageHeader title="Pre-flight preview" description={UNCONFIGURED_APP} />;
   }
 
   const { data: c, error } = await sb.from("campaigns").select("*").eq("id", params.id).maybeSingle();
@@ -69,6 +39,12 @@ export default async function CampaignPreviewPage({ params }: { params: { id: st
     .eq("campaign_id", params.id)
     .order("scheduled_at", { ascending: true })
     .limit(20);
+
+  const { count: pendingCount } = await sb
+    .from("campaign_leads")
+    .select("id", { count: "exact", head: true })
+    .eq("campaign_id", params.id)
+    .eq("status", "pending");
 
   const { data: ar } = await sb
     .from("autoresponders")
@@ -110,6 +86,7 @@ export default async function CampaignPreviewPage({ params }: { params: { id: st
         hourly={hourly}
         firstLeads={(firstRows ?? []) as { email: string; scheduled_at: string }[]}
         summary={summary}
+        pendingCount={pendingCount ?? 0}
       />
     </>
   );

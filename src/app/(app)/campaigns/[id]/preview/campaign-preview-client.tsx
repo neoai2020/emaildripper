@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bar,
@@ -17,9 +17,12 @@ import { toast } from "sonner";
 
 import {
   activatePreviewCampaignAction,
+  cancelCampaignAction,
   discardPreviewCampaignAction,
+  sendPreviewTestLeadsAction,
+  type PreviewTestLeadResult,
 } from "@/app/(app)/campaigns/actions";
-import { formatUtcDateTime } from "@/lib/format-display";
+import { HelpTip } from "@/components/help-tip";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -29,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatUtcDateTime } from "@/lib/format-display";
 
 export type HourlyRow = { hour: string; sends: number };
 
@@ -48,17 +52,25 @@ export function CampaignPreviewClient({
   hourly,
   firstLeads,
   summary,
+  pendingCount,
 }: {
   campaignId: string;
   status: string;
   hourly: HourlyRow[];
   firstLeads: { email: string; scheduled_at: string }[];
   summary: PreviewSummary;
+  pendingCount: number;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const testModalRef = useRef<HTMLDialogElement>(null);
   const [dryRun, setDryRun] = useState(false);
+  const [testResults, setTestResults] = useState<PreviewTestLeadResult[] | null>(null);
+  const [localPending, setLocalPending] = useState(pendingCount);
+  useEffect(() => {
+    setLocalPending(pendingCount);
+  }, [pendingCount]);
 
   function activate() {
     startTransition(async () => {
@@ -89,7 +101,50 @@ export function CampaignPreviewClient({
     });
   }
 
+  function sendTestLeads() {
+    startTransition(async () => {
+      try {
+        const res = await sendPreviewTestLeadsAction(campaignId);
+        setTestResults(res);
+        setLocalPending((p) => Math.max(0, p - res.filter((r) => r.ok).length));
+        testModalRef.current?.showModal();
+        router.refresh();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Test send failed");
+      }
+    });
+  }
+
+  function launchRemaining() {
+    startTransition(async () => {
+      try {
+        await activatePreviewCampaignAction(campaignId);
+        toast.success("Campaign is now running");
+        testModalRef.current?.close();
+        router.push(`/campaigns/${campaignId}`);
+        router.refresh();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Launch failed");
+      }
+    });
+  }
+
+  function cancelFromModal() {
+    startTransition(async () => {
+      try {
+        await cancelCampaignAction(campaignId);
+        toast.success("Campaign cancelled");
+        testModalRef.current?.close();
+        router.push("/campaigns");
+        router.refresh();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Cancel failed");
+      }
+    });
+  }
+
   const isPreview = status === "previewing";
+  const remainingAfterTest = localPending;
 
   return (
     <div className="space-y-8">
@@ -98,16 +153,26 @@ export function CampaignPreviewClient({
           <h2 className="font-heading text-sm font-semibold text-foreground">Summary</h2>
           <dl className="mt-3 space-y-2 text-sm text-muted-foreground">
             <div className="flex justify-between gap-4">
-              <dt>Autoresponder email</dt>
+              <dt className="flex items-center gap-1">
+                Autoresponder email
+                <HelpTip id="preview.arEmail" />
+              </dt>
               <dd className="font-mono text-xs text-foreground">{summary.arEmail ?? "—"}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt>Tag</dt>
+              <dt className="flex items-center gap-1">
+                Tag
+                <HelpTip id="campaign.tag" />
+              </dt>
               <dd className="font-mono text-xs text-foreground">{summary.tag}</dd>
             </div>
             <div className="flex justify-between gap-4">
               <dt>Leads</dt>
               <dd className="font-mono text-xs text-foreground">{summary.totalLeads}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt>Pending</dt>
+              <dd className="font-mono text-xs text-foreground">{localPending}</dd>
             </div>
             <div className="flex justify-between gap-4">
               <dt>Daily cap (AR)</dt>
@@ -128,7 +193,10 @@ export function CampaignPreviewClient({
           </dl>
         </div>
         <div>
-          <h2 className="font-heading text-sm font-semibold text-foreground">Timeline (sends / hour)</h2>
+          <h2 className="flex items-center gap-2 font-heading text-sm font-semibold text-foreground">
+            Timeline (sends / hour)
+            <HelpTip id="preview.chart" />
+          </h2>
           <p className="mt-1 text-xs text-muted-foreground">Line shows the same buckets as the bar chart.</p>
           <div className="mt-3 h-40 w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
@@ -179,7 +247,10 @@ export function CampaignPreviewClient({
 
       <div className="rounded-xl border border-border/80">
         <div className="border-b border-border/80 px-4 py-3">
-          <h2 className="font-heading text-sm font-semibold">First 20 scheduled sends</h2>
+          <h2 className="flex items-center gap-2 font-heading text-sm font-semibold">
+            First 20 scheduled sends
+            <HelpTip id="preview.firstSends" />
+          </h2>
         </div>
         <Table>
           <TableHeader>
@@ -240,9 +311,55 @@ export function CampaignPreviewClient({
         </div>
       </dialog>
 
+      <dialog
+        ref={testModalRef}
+        onClose={() => {
+          /* keep previewing — no status change */
+        }}
+        className="fixed left-1/2 top-1/2 max-h-[min(90vh,560px)] w-[min(100%,480px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-border bg-background p-6 text-sm shadow-xl"
+      >
+        <h3 className="font-heading text-base font-semibold text-foreground">Test send results</h3>
+        <p className="mt-2 text-xs text-muted-foreground">
+          First leads posted to Make immediately. Successful rows are marked sent; this modal does not change preview
+          status.
+        </p>
+        {testResults ? (
+          <ul className="mt-4 space-y-3">
+            {testResults.map((r) => (
+              <li key={r.email} className="rounded-lg border border-border/80 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-xs">{r.email}</span>
+                  <span className="text-lg">{r.ok ? "✅" : "❌"}</span>
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  HTTP {r.httpStatus} · {r.bodySnippet}
+                </p>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <Button type="button" variant="outline" onClick={() => testModalRef.current?.close()}>
+            Close
+          </Button>
+          <Button type="button" disabled={pending || remainingAfterTest <= 0} onClick={launchRemaining}>
+            {pending ? "Working…" : `Launch remaining ${remainingAfterTest}`}
+          </Button>
+          <Button type="button" variant="destructive" disabled={pending} onClick={cancelFromModal}>
+            Cancel campaign
+          </Button>
+        </div>
+      </dialog>
+
       <div className="flex flex-wrap gap-2">
         {isPreview ? (
           <>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="secondary" disabled={pending || pendingCount === 0} onClick={sendTestLeads}>
+                {pending ? "Posting…" : "Send test (first 3 to Make)"}
+              </Button>
+              <HelpTip id="preview.testSend" />
+            </div>
             <Button type="button" onClick={() => dialogRef.current?.showModal()} disabled={pending}>
               Launch campaign…
             </Button>

@@ -1,3 +1,6 @@
+import { SuppressionCsvUpload } from "@/app/(app)/leads/suppression/suppression-csv-client";
+import { addSuppressionAction } from "@/app/(app)/leads/suppression/actions";
+import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,25 +18,44 @@ import { getServiceSupabase } from "@/lib/db";
 import { formatUtcDateTime } from "@/lib/format-display";
 import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 
-import { addSuppressionAction } from "./actions";
+function sanitizeQ(raw: string) {
+  return raw.replace(/[^a-zA-Z0-9@._+%-]/g, "").slice(0, 120);
+}
 
-export default async function SuppressionPage() {
+export default async function SuppressionPage({ searchParams }: { searchParams: { q?: string } }) {
   const sb = getServiceSupabase();
   if (!sb) {
     return <PageHeader title="Suppression list" description={UNCONFIGURED_APP} />;
   }
 
-  const { data: rows, error } = await sb
+  const qRaw = (searchParams.q ?? "").trim();
+  const q = sanitizeQ(qRaw);
+
+  let query = sb
     .from("suppression_list")
     .select("email,reason,source,added_at,notes")
     .order("added_at", { ascending: false })
     .limit(200);
+  if (q) query = query.ilike("email", `%${q}%`);
 
+  const { data: rows, error } = await query;
   if (error) throw new Error(error.message);
 
   return (
     <>
       <PageHeader title="Suppression list" description="These emails will never be imported into campaigns." />
+
+      <SuppressionCsvUpload />
+
+      <form method="get" className="mb-6 flex max-w-md flex-wrap items-end gap-2">
+        <div className="grid flex-1 gap-1">
+          <Label htmlFor="sup-q">Search email</Label>
+          <Input id="sup-q" name="q" defaultValue={qRaw} placeholder="contains…" />
+        </div>
+        <Button type="submit" variant="outline">
+          Search
+        </Button>
+      </form>
 
       <div className="mb-8 rounded-xl border border-border/80 p-4">
         <form action={addSuppressionAction} className="grid gap-3 md:grid-cols-[2fr_3fr_auto] md:items-end">
@@ -49,25 +71,26 @@ export default async function SuppressionPage() {
         </form>
       </div>
 
-      <div className="rounded-xl border border-border/80">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Email</TableHead>
-              <TableHead>Reason</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead>Added (UTC)</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(rows ?? []).length === 0 ? (
+      {(rows ?? []).length === 0 ? (
+        <EmptyState
+          title="No suppressions"
+          description="Upload a CSV or add addresses manually to protect bounces and opt-outs."
+          actionHref="/leads/import"
+          actionLabel="Go to import"
+        />
+      ) : (
+        <div className="rounded-xl border border-border/80">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={4} className="py-10 text-center text-sm text-muted-foreground">
-                  No suppressions yet.
-                </TableCell>
+                <TableHead>Email</TableHead>
+                <TableHead>Reason</TableHead>
+                <TableHead>Source</TableHead>
+                <TableHead>Added (UTC)</TableHead>
               </TableRow>
-            ) : (
-              rows!.map((r) => (
+            </TableHeader>
+            <TableBody>
+              {rows!.map((r) => (
                 <TableRow key={r.email}>
                   <TableCell className="font-mono text-xs">{r.email}</TableCell>
                   <TableCell className="text-xs">{r.reason ?? "—"}</TableCell>
@@ -76,11 +99,11 @@ export default async function SuppressionPage() {
                     {formatUtcDateTime(r.added_at as string | null)}
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </>
   );
 }

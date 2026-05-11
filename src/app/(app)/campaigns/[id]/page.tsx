@@ -12,14 +12,29 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { cancelCampaignAction, discardPreviewCampaignAction, pauseCampaignAction } from "@/app/(app)/campaigns/actions";
+import {
+  cancelCampaignAction,
+  discardPreviewCampaignAction,
+  pauseCampaignAction,
+  undoCancelCampaignAction,
+} from "@/app/(app)/campaigns/actions";
 import { ResumeCampaignPanel } from "@/app/(app)/campaigns/[id]/resume-campaign-panel";
 import { getServiceSupabase } from "@/lib/db";
 import { formatUtcDateTime, humanizeStatus } from "@/lib/format-display";
 import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 import { cn } from "@/lib/utils";
 
-export default async function CampaignDetailPage({ params }: { params: { id: string } }) {
+function sanitizeLeadSearch(raw: string) {
+  return raw.replace(/[^a-zA-Z0-9@._+-]/g, "").slice(0, 120);
+}
+
+export default async function CampaignDetailPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams: { q?: string };
+}) {
   const sb = getServiceSupabase();
   if (!sb) {
     return <PageHeader title="Campaign" description={UNCONFIGURED_APP} />;
@@ -29,12 +44,16 @@ export default async function CampaignDetailPage({ params }: { params: { id: str
   if (error) throw new Error(error.message);
   if (!c) notFound();
 
-  const { data: leads } = await sb
+  const qRaw = (searchParams.q ?? "").trim();
+  const q = sanitizeLeadSearch(qRaw);
+  let leadsQuery = sb
     .from("campaign_leads")
     .select("id,email,status,scheduled_at,sent_at,attempt_count,make_response_status,error_message")
     .eq("campaign_id", params.id)
     .order("scheduled_at", { ascending: true })
-    .limit(50);
+    .limit(200);
+  if (q) leadsQuery = leadsQuery.ilike("email", `%${q}%`);
+  const { data: leads } = await leadsQuery;
 
   let resumeInfo: { pending: number; shiftMs: number } | null = null;
   if (c.status === "paused" && c.paused_at) {
@@ -46,6 +65,10 @@ export default async function CampaignDetailPage({ params }: { params: { id: str
       .eq("status", "pending");
     resumeInfo = { pending: count ?? 0, shiftMs: Math.max(0, shiftMs) };
   }
+
+  const canUndoCancel =
+    c.status === "cancelled" &&
+    (!c.purge_at || (typeof c.purge_at === "string" && new Date(c.purge_at as string) > new Date()));
 
   return (
     <>
@@ -110,8 +133,33 @@ export default async function CampaignDetailPage({ params }: { params: { id: str
               </button>
             </form>
           ) : null}
+          {canUndoCancel ? (
+            <form action={undoCancelCampaignAction.bind(null, c.id as string)}>
+              <button type="submit" className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}>
+                Undo cancel
+              </button>
+            </form>
+          ) : null}
         </div>
       </div>
+
+      <form method="get" className="mb-4 flex max-w-md flex-wrap items-end gap-2">
+        <div className="grid flex-1 gap-1">
+          <label htmlFor="lead-q" className="text-xs text-muted-foreground">
+            Filter leads by email
+          </label>
+          <input
+            id="lead-q"
+            name="q"
+            defaultValue={qRaw}
+            placeholder="contains…"
+            className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+          />
+        </div>
+        <button type="submit" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+          Apply
+        </button>
+      </form>
 
       <div className="rounded-xl border border-border/80">
         <Table>
