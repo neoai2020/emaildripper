@@ -14,6 +14,8 @@ export type FeelsHumanInput = {
   gapFloor?: number;
   burst2?: number;
   burst3?: number;
+  /** Seconds within a minute bucket — PRD randomization_settings.intra_bucket_jitter */
+  intraBucketJitter?: "uniform" | "beta" | "triangle";
 };
 
 function parseHm(s: string): { h: number; m: number } {
@@ -107,6 +109,16 @@ function drawBucketCount(
  * Returns `count` send timestamps between windowStart and windowEnd, respecting quiet hours.
  * Persists-ready: sorted ascending.
  */
+function intraSecond(rand: () => number, mode: FeelsHumanInput["intraBucketJitter"]): number {
+  if (mode === "triangle") {
+    return Math.min(59, Math.floor(Math.abs(rand() * 2 - 1) * 30));
+  }
+  if (mode === "beta") {
+    return Math.min(59, Math.floor(rand() * rand() * 59));
+  }
+  return Math.floor(rand() * 59);
+}
+
 export function buildFeelsHumanSchedule(input: FeelsHumanInput): Date[] {
   const {
     count,
@@ -120,6 +132,7 @@ export function buildFeelsHumanSchedule(input: FeelsHumanInput): Date[] {
     gapFloor = 0.15,
     burst2 = 0.2,
     burst3 = 0.05,
+    intraBucketJitter = "uniform",
   } = input;
 
   if (count <= 0) return [];
@@ -176,7 +189,7 @@ export function buildFeelsHumanSchedule(input: FeelsHumanInput): Date[] {
     const minuteOffset = offsets[i] ?? 0;
     const base = addMinutes(windowStart, minuteOffset);
     for (let j = 0; j < k; j++) {
-      const sec = Math.floor(rand() * 59);
+      const sec = intraSecond(rand, intraBucketJitter);
       times.push(addSeconds(base, sec));
     }
   }
@@ -186,7 +199,7 @@ export function buildFeelsHumanSchedule(input: FeelsHumanInput): Date[] {
   while (times.length < count) {
     const idx = Math.floor(rand() * offsets.length);
     const base = addMinutes(windowStart, offsets[idx] ?? 0);
-    times.push(addSeconds(base, Math.floor(rand() * 59)));
+    times.push(addSeconds(base, intraSecond(rand, intraBucketJitter)));
     times.sort((a, b) => a.getTime() - b.getTime());
   }
   return times.slice(0, count);
