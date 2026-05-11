@@ -55,3 +55,28 @@ export function safeCompareToken(a: string, b: string): boolean {
     return false;
   }
 }
+
+export const MAKE_WEBHOOK_POST_MS = 10_000;
+
+export async function postSignedMakeLead(
+  url: string,
+  body: MakeLeadPayload & { signature: string },
+  timeoutMs = MAKE_WEBHOOK_POST_MS
+): Promise<{ status: number; text: string }> {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      signal: ac.signal,
+    });
+    const text = await res.text();
+    return { status: res.status, text: text.slice(0, 500) };
+  } catch {
+    return { status: 0, text: "timeout_or_network_error" };
+  } finally {
+    clearTimeout(timer);
+  }
+}

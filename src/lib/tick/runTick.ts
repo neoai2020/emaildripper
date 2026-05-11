@@ -5,24 +5,13 @@ import { NextResponse } from "next/server";
 import type { ArCapRow } from "@/lib/autoresponder-caps";
 import { countSendsPerArToday, effectiveDailySendCap, utcDayStartIso } from "@/lib/autoresponder-caps";
 import { requireServiceSupabase } from "@/lib/db";
-import { safeCompareToken, signMakePayload } from "@/lib/make-webhook";
+import { MAKE_WEBHOOK_POST_MS, postSignedMakeLead, safeCompareToken, signMakePayload } from "@/lib/make-webhook";
 import { checkRateLimit, clientIpFromRequest } from "@/lib/rate-limit";
 
-export const TICK_POST_TIMEOUT_MS = 10_000;
 /** PRD worker batch sizing — align outbound work per tick */
 const DUE_SELECT_LIMIT = 100;
-const MAX_WORK_LEADS = 50;
-
-async function postMake(url: string, body: unknown, signal: AbortSignal) {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-    signal,
-  });
-  const text = await res.text();
-  return { status: res.status, text: text.slice(0, 2000) };
-}
+const MAX_WORK_LEADS = 10;
+const TICK_SLOW_MS = 25_000;
 
 async function bumpSent(sb: ReturnType<typeof requireServiceSupabase>, campaignId: string) {
   const { data } = await sb.from("campaigns").select("sent_count").eq("id", campaignId).single();
@@ -73,14 +62,36 @@ export async function runTick(req: Request): Promise<NextResponse> {
   }
 
   const ip = clientIpFromRequest(req);
-  if (!checkRateLimit(`tick:${ip}`, 200, 60_000).ok) {
-    return NextResponse.json({ ok: false, error: "rate_limit" }, { status: 429 });
+  const rl = checkRateLimit(`tick:${ip}`, 5, 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { ok: false, error: "rate_limit" },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
+    );
   }
 
   const started = Date.now();
   const sb = requireServiceSupabase();
   const now = new Date();
   const nowIso = now.toISOString();
+
+  const todayUtc = nowIso.slice(0, 10);
+  const { data: purgeRow } = await sb.from("settings").select("last_cancel_purge_utc").eq("id", 1).maybeSingle();
+  if (purgeRow?.last_cancel_purge_utc !== todayUtc) {
+    const { data: victims, error: pvErr } = await sb
+      .from("campaigns")
+      .select("id")
+      .eq("status", "cancelled")
+      .not("purge_at", "is", null)
+      .lte("purge_at", nowIso);
+    if (!pvErr) {
+      for (const v of victims ?? []) {
+        // eslint-disable-next-line no-await-in-loop
+        await sb.from("campaigns").delete().eq("id", v.id as string);
+      }
+    }
+    await sb.from("settings").update({ last_cancel_purge_utc: todayUtc }).eq("id", 1);
+  }
 
   const { data: tickRow, error: tickInsErr } = await sb
     .from("tick_log")
@@ -106,9 +117,15 @@ export async function runTick(req: Request): Promise<NextResponse> {
     .limit(DUE_SELECT_LIMIT);
 
   if (dueErr) {
+    const duration_ms = Date.now() - started;
     await sb
       .from("tick_log")
-      .update({ leads_processed: 0, duration_ms: Date.now() - started, errors: 1 })
+      .update({
+        leads_processed: 0,
+        duration_ms,
+        errors: 1,
+        slow: duration_ms > TICK_SLOW_MS,
+      })
       .eq("id", tickLogId);
     return NextResponse.json({ ok: false, error: dueErr.message }, { status: 500 });
   }
@@ -120,11 +137,18 @@ export async function runTick(req: Request): Promise<NextResponse> {
   });
 
   if (rows.length === 0) {
+    const duration_ms = Date.now() - started;
     await sb
       .from("tick_log")
-      .update({ leads_processed: 0, duration_ms: Date.now() - started, errors: 0 })
+      .update({
+        leads_processed: 0,
+        duration_ms,
+        errors: 0,
+        slow: duration_ms > TICK_SLOW_MS,
+      })
       .eq("id", tickLogId);
     await markCompletedCampaigns(sb);
+    await sb.from("settings").update({ last_successful_tick_at: nowIso }).eq("id", 1);
     return NextResponse.json({ ok: true, processed: 0, message: "no due leads" });
   }
 
@@ -135,9 +159,15 @@ export async function runTick(req: Request): Promise<NextResponse> {
     .in("id", campaignIds)
     .eq("status", "running");
   if (cErr) {
+    const duration_ms = Date.now() - started;
     await sb
       .from("tick_log")
-      .update({ leads_processed: 0, duration_ms: Date.now() - started, errors: 1 })
+      .update({
+        leads_processed: 0,
+        duration_ms,
+        errors: 1,
+        slow: duration_ms > TICK_SLOW_MS,
+      })
       .eq("id", tickLogId);
     return NextResponse.json({ ok: false, error: cErr.message }, { status: 500 });
   }
@@ -148,9 +178,15 @@ export async function runTick(req: Request): Promise<NextResponse> {
   );
   const { data: ars, error: aErr } = await sb.from("autoresponders").select("*").in("id", arIds);
   if (aErr) {
+    const duration_ms = Date.now() - started;
     await sb
       .from("tick_log")
-      .update({ leads_processed: 0, duration_ms: Date.now() - started, errors: 1 })
+      .update({
+        leads_processed: 0,
+        duration_ms,
+        errors: 1,
+        slow: duration_ms > TICK_SLOW_MS,
+      })
       .eq("id", tickLogId);
     return NextResponse.json({ ok: false, error: aErr.message }, { status: 500 });
   }
@@ -255,18 +291,9 @@ export async function runTick(req: Request): Promise<NextResponse> {
       httpStatus = 204;
       responseText = "dry_run_no_http";
     } else {
-      const ac = new AbortController();
-      const timer = setTimeout(() => ac.abort(), TICK_POST_TIMEOUT_MS);
-      try {
-        const res = await postMake(ar.make_webhook_url, body, ac.signal);
-        httpStatus = res.status;
-        responseText = res.text;
-      } catch {
-        httpStatus = 0;
-        responseText = "timeout_or_network_error";
-      } finally {
-        clearTimeout(timer);
-      }
+      const res = await postSignedMakeLead(ar.make_webhook_url as string, body, MAKE_WEBHOOK_POST_MS);
+      httpStatus = res.status;
+      responseText = res.text;
     }
 
     const durationMs = Date.now() - t0;
@@ -341,16 +368,19 @@ export async function runTick(req: Request): Promise<NextResponse> {
     }
   }
 
+  const duration_ms = Date.now() - started;
   await sb
     .from("tick_log")
     .update({
       leads_processed: processed,
-      duration_ms: Date.now() - started,
+      duration_ms,
       errors,
+      slow: duration_ms > TICK_SLOW_MS,
     })
     .eq("id", tickLogId);
 
   await markCompletedCampaigns(sb);
+  await sb.from("settings").update({ last_successful_tick_at: new Date().toISOString() }).eq("id", 1);
 
-  return NextResponse.json({ ok: true, processed, errors, ms: Date.now() - started });
+  return NextResponse.json({ ok: true, processed, errors, ms: duration_ms });
 }

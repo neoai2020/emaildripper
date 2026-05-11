@@ -15,6 +15,8 @@ export const launchCampaignSchema = z.object({
   tag: z.string().min(3).max(200),
   /** Storage path in `campaign-csv` bucket when user uploaded a source file */
   sourceCsvPath: z.string().max(500).optional().nullable(),
+  /** Cap how many MX-eligible leads are scheduled (wizard validation step). */
+  scheduleLeadLimit: z.coerce.number().int().positive().max(5000).optional().nullable(),
 });
 
 export type LaunchCampaignInput = z.infer<typeof launchCampaignSchema>;
