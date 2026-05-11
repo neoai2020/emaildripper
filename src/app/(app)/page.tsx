@@ -95,7 +95,7 @@ export default async function DashboardPage() {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <PageHeader
           title="Dashboard"
-          description="Operational snapshot. Refreshes every 30 seconds."
+          description="Operational snapshot for when you open or reload this page."
         />
         <Link href="/help" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
           Help
@@ -132,8 +132,8 @@ export default async function DashboardPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                recentFailures.map((r) => (
-                  <TableRow key={r.email + r.campaign_id}>
+                recentFailures.map((r, i) => (
+                  <TableRow key={`${r.campaign_id}-${r.email}-${i}`}>
                     <TableCell className="font-mono text-xs">{r.email}</TableCell>
                     <TableCell className="font-mono text-[11px] text-muted-foreground">{r.campaign_id}</TableCell>
                     <TableCell className="max-w-md truncate text-xs text-muted-foreground">

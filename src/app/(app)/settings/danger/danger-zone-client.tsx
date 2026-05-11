@@ -93,7 +93,7 @@ export function DangerZoneClient() {
       />
       <DangerBlock
         title="Reset global settings"
-        body="Resets row id=1 to defaults (tooltips on, Vienna TZ, clears Telegram/email, default randomization JSON)."
+        body="Resets row id=1 to defaults (tooltips on, Vienna timezone, default randomization JSON)."
         phrase="RESET SETTINGS"
         action={resetSettingsAction}
         variant="destructive"

@@ -27,32 +27,6 @@ export async function updatePreferencesAction(formData: FormData) {
   revalidatePath("/");
 }
 
-export async function updateAlertsAction(formData: FormData) {
-  const sb = requireServiceSupabase();
-  const telegram_bot_token = String(formData.get("telegram_bot_token") ?? "").trim() || null;
-  const telegram_chat_id = String(formData.get("telegram_chat_id") ?? "").trim() || null;
-  const alert_email = String(formData.get("alert_email") ?? "").trim() || null;
-
-  const { error } = await sb
-    .from("settings")
-    .update({
-      telegram_bot_token,
-      telegram_chat_id,
-      alert_email,
-    })
-    .eq("id", 1);
-  if (error) throw new Error(error.message);
-
-  await writeAuditLog({
-    action: "settings_alerts_updated",
-    entityType: "settings",
-    entityId: null,
-    details: { has_telegram: Boolean(telegram_bot_token && telegram_chat_id), has_email: Boolean(alert_email) },
-  });
-
-  revalidatePath("/settings/alerts");
-}
-
 export async function updateRandomizationAction(formData: FormData) {
   const sb = requireServiceSupabase();
   const { data: cur, error: rErr } = await sb.from("settings").select("randomization_settings").eq("id", 1).single();
@@ -74,7 +48,9 @@ export async function updateRandomizationAction(formData: FormData) {
   if (Number.isFinite(b3)) next.burst_probability_3 = Math.min(0.35, Math.max(0.01, b3));
 
   const jitter = String(formData.get("intra_bucket_jitter") ?? "uniform").trim();
-  if (jitter === "uniform" || jitter === "beta") next.intra_bucket_jitter = jitter;
+  if (jitter === "uniform" || jitter === "beta" || jitter === "triangle") {
+    next.intra_bucket_jitter = jitter;
+  }
 
   const { error } = await sb.from("settings").update({ randomization_settings: next }).eq("id", 1);
   if (error) throw new Error(error.message);

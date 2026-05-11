@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   AlertOctagon,
   Ban,
-  Bell,
   CircleHelp,
   FileUp,
   Clock,
@@ -42,7 +41,6 @@ const mainNav = [
 const settingsNav = [
   { href: "/settings", label: "Overview", icon: Settings },
   { href: "/settings/preferences", label: "Preferences", icon: SlidersHorizontal },
-  { href: "/settings/alerts", label: "Alerts", icon: Bell },
   { href: "/settings/randomization", label: "Randomization", icon: Sparkles },
   { href: "/settings/cron", label: "Timer", icon: Clock },
   { href: "/settings/backups", label: "Backups", icon: HardDrive },

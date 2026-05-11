@@ -94,8 +94,8 @@ export function DashboardMetricCards({
           </p>
           {warn ? (
             <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-              You are within about 20% of the monthly Make.com usage limit set in Settings. Leave headroom for
-              retries inside Make.
+              You are within about 20% of the configured monthly Make.com usage limit. Leave headroom for retries
+              inside Make.
             </p>
           ) : null}
         </CardContent>

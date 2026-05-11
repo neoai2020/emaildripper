@@ -46,8 +46,8 @@ export default function HelpPage() {
             <Link href="/settings/cron" className="text-primary underline-offset-4 hover:underline">
               Settings → Scheduled sender
             </Link>{" "}
-            copy the full address and paste it into your scheduler with a one-minute interval. Optional links on the
-            same page can trigger a weekly email recap or a backup upload if you choose to use them.
+            copy the full address and paste it into your scheduler with a one-minute interval. The same page lists an
+            optional backup upload URL if you use file snapshots.
           </p>
         </Section>
 
@@ -80,10 +80,14 @@ export default function HelpPage() {
           </p>
         </Section>
 
-        <Section title="Backups and email recaps">
+        <Section title="Backups">
           <p>
-            Your database provider already includes automatic backups on paid plans. Optional file snapshots and email
-            recaps use separate services when those keys are present — see Settings for alerts and backups.
+            Your database provider already includes automatic backups on paid plans. Optional file snapshots are
+            described under{" "}
+            <Link href="/settings/backups" className="text-primary underline-offset-4 hover:underline">
+              Settings → Backups
+            </Link>
+            .
           </p>
         </Section>
 
@@ -106,8 +110,8 @@ export default function HelpPage() {
               successfully reached the app recently; confirm the address, secret, and that the site is online.
             </li>
             <li>
-              <strong className="text-foreground">Telegram is quiet</strong> — confirm the bot token, chat id, and that
-              an event worth alerting on has actually happened.
+              <strong className="text-foreground">Campaign stuck in processing</strong> — a lead can stay locked until
+              its lock expires; check Make.com errors and the campaign detail view.
             </li>
           </ul>
           <p className="pt-2">

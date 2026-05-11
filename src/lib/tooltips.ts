@@ -88,10 +88,6 @@ export const TOOLTIPS = {
     title: "Randomization",
     body: "Global defaults for gap/burst probabilities and intra-bucket jitter used when building new schedules.",
   },
-  "settings.alerts": {
-    title: "Alerts",
-    body: "Telegram and optional email for worker gaps, failure-rate spikes, and campaign completion.",
-  },
   "audit.row": {
     title: "Audit entry",
     body: "Immutable record of a mutating action — export CSV for compliance reviews.",

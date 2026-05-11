@@ -100,6 +100,5 @@ export async function resetSettingsAction(formData: FormData) {
   });
   revalidatePath("/settings");
   revalidatePath("/settings/preferences");
-  revalidatePath("/settings/alerts");
   revalidatePath("/settings/randomization");
 }

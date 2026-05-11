@@ -42,13 +42,7 @@ export default function SettingsCronPage() {
           <li>After deploy, open your scheduler’s history and confirm each run finished successfully.</li>
         </ul>
         <div className="grid gap-2 border-t border-border/80 pt-4 text-sm text-muted-foreground">
-          <p className="font-medium text-foreground">Optional timed jobs (same secret)</p>
-          <p className="text-xs">
-            Weekly email recap:{" "}
-            <code className="break-all rounded bg-muted px-1 font-mono text-[11px]">
-              {base ? `${base}/api/digest-email?token=${encodeURIComponent(token)}` : "/api/digest-email?token=…"}
-            </code>
-          </p>
+          <p className="font-medium text-foreground">Optional timed job (same secret)</p>
           <p className="text-xs">
             Backup snapshot upload:{" "}
             <code className="break-all rounded bg-muted px-1 font-mono text-[11px]">
