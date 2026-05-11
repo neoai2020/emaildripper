@@ -16,6 +16,7 @@ import {
   ScrollText,
   Settings,
   Shapes,
+  FileSpreadsheet,
   SlidersHorizontal,
   Sparkles,
   Users,
@@ -32,7 +33,7 @@ const mainNav = [
   { href: "/leads/import", label: "CSV import", icon: FileUp },
   { href: "/leads/suppression", label: "Suppression", icon: Ban },
   { href: "/templates/campaigns", label: "Campaign templates", icon: Shapes },
-  { href: "/templates/csv-mappings", label: "CSV mappings", icon: Shapes },
+  { href: "/templates/csv-mappings", label: "CSV mappings", icon: FileSpreadsheet },
   { href: "/analytics", label: "Analytics", icon: LineChart },
   { href: "/audit-log", label: "Audit log", icon: ScrollText },
   { href: "/help", label: "Help", icon: CircleHelp },
@@ -49,6 +50,8 @@ const settingsNav = [
 
 function navActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
+  // Settings overview lives at `/settings` only — do not treat every `/settings/*` as Overview.
+  if (href === "/settings") return pathname === "/settings";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

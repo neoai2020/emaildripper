@@ -34,3 +34,6 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# local Playwright visual QA captures (regenerate anytime)
+assets/visual-qa-desktop/*.png

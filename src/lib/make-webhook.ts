@@ -35,6 +35,16 @@ export function signMakePayload(
   return { ...body, signature };
 }
 
+/** Recompute HMAC from payload fields (excludes `signature`) and compare in constant time. */
+export function verifyMakePayloadSignature(
+  received: MakeLeadPayload & { signature: string },
+  secret: string
+): boolean {
+  const { signature, ...rest } = received;
+  const expected = signMakePayload(rest, secret).signature;
+  return safeCompareToken(signature, expected);
+}
+
 export function safeCompareToken(a: string, b: string): boolean {
   try {
     const ba = Buffer.from(a);

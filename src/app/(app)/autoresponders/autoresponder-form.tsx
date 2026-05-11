@@ -2,6 +2,7 @@
 
 import { useFormStatus } from "react-dom";
 
+import { HelpTip } from "@/components/help-tip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -88,7 +89,10 @@ export function AutoresponderForm({
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor={`${idPrefix}-make_webhook_url`}>Make webhook URL</Label>
+        <div className="flex items-center gap-2">
+          <Label htmlFor={`${idPrefix}-make_webhook_url`}>Make webhook URL</Label>
+          <HelpTip id="ar.webhook" />
+        </div>
         <Input
           id={`${idPrefix}-make_webhook_url`}
           name="make_webhook_url"
@@ -100,7 +104,10 @@ export function AutoresponderForm({
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor={`${idPrefix}-webhook_secret`}>Webhook HMAC secret</Label>
+        <div className="flex items-center gap-2">
+          <Label htmlFor={`${idPrefix}-webhook_secret`}>Webhook HMAC secret</Label>
+          <HelpTip id="ar.hmac" />
+        </div>
         <Textarea
           id={`${idPrefix}-webhook_secret`}
           name="webhook_secret"
@@ -112,7 +119,10 @@ export function AutoresponderForm({
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor={`${idPrefix}-daily_cap`}>Daily cap (optional)</Label>
+        <div className="flex items-center gap-2">
+          <Label htmlFor={`${idPrefix}-daily_cap`}>Daily cap (optional)</Label>
+          <HelpTip id="ar.dailyCap" />
+        </div>
         <Input
           id={`${idPrefix}-daily_cap`}
           name="daily_cap"
@@ -131,7 +141,10 @@ export function AutoresponderForm({
             defaultChecked={initial?.warmup_enabled ?? false}
             className="size-4 rounded border border-input accent-primary"
           />
-          Warmup enabled
+          <span className="flex items-center gap-1">
+            Warmup enabled
+            <HelpTip id="ar.warmup" />
+          </span>
         </label>
         <label className="flex cursor-pointer items-center gap-2 text-sm">
           <input

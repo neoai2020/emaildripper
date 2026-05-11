@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 const links = [
   { href: "/settings/preferences", label: "Preferences", desc: "Tooltips and default timezone." },
   { href: "/settings/randomization", label: "Randomization", desc: "Natural-looking send spacing defaults." },
-  { href: "/settings/cron", label: "Scheduled sender", desc: "Address your external timer should call every minute." },
+  { href: "/settings/cron", label: "Timer", desc: "URL your external scheduler should call about once a minute." },
   { href: "/settings/backups", label: "Backups", desc: "Extra copies and retention hints." },
   { href: "/settings/danger", label: "Danger zone", desc: "Destructive actions." },
 ] as const;

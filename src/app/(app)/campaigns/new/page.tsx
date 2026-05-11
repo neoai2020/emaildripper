@@ -31,7 +31,7 @@ export default async function NewCampaignPage() {
           description="Set up a new drip campaign."
         />
         <Link href="/campaigns" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-          Back
+          All campaigns
         </Link>
       </div>
       <CampaignWizard

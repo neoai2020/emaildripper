@@ -40,11 +40,11 @@ export default function HelpPage() {
           </p>
         </Section>
 
-        <Section title="Scheduled sender (timer)">
+        <Section title="Timer (external scheduler)">
           <p>
             In{" "}
             <Link href="/settings/cron" className="text-primary underline-offset-4 hover:underline">
-              Settings → Scheduled sender
+              Settings → Timer
             </Link>{" "}
             copy the full address and paste it into your scheduler with a one-minute interval. The same page lists an
             optional backup upload URL if you use file snapshots.

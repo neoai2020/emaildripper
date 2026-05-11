@@ -1,8 +1,5 @@
-import Link from "next/link";
-
 import { DashboardMetricCards } from "@/app/(app)/dashboard-metric-cards";
 import { PageHeader } from "@/components/page-header";
-import { buttonVariants } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -12,8 +9,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getServiceSupabase } from "@/lib/db";
-import { cn } from "@/lib/utils";
-
 export default async function DashboardPage() {
   const sb = getServiceSupabase();
 
@@ -97,9 +92,6 @@ export default async function DashboardPage() {
           title="Dashboard"
           description="Operational snapshot for when you open or reload this page."
         />
-        <Link href="/help" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-          Help
-        </Link>
       </div>
       <DashboardMetricCards
         activeCampaigns={sb ? String(activeCampaigns) : "—"}

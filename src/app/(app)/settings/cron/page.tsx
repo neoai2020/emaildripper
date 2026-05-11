@@ -12,8 +12,8 @@ export default function SettingsCronPage() {
   return (
     <>
       <PageHeader
-        title="Scheduled sender"
-        description="Your external timer should call this address about once a minute so queued emails can go out. Keep the secret token private."
+        title="Timer"
+        description="Your external scheduler calls this address about once a minute so queued emails can go out. Keep the secret token private."
       />
 
       <div className="mt-8 space-y-6 rounded-xl border border-border/80 p-6">
