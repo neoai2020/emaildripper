@@ -11,13 +11,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getServiceSupabase } from "@/lib/db";
+import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 
 import { createCampaignTemplateAction, deleteCampaignTemplateAction } from "../actions";
 
 export default async function CampaignTemplatesPage() {
   const sb = getServiceSupabase();
   if (!sb) {
-    return <PageHeader title="Campaign templates" description="Connect Supabase to manage templates." />;
+    return <PageHeader title="Campaign templates" description={UNCONFIGURED_APP} />;
   }
 
   const [{ data: rows, error }, { data: ars }] = await Promise.all([
@@ -28,7 +29,7 @@ export default async function CampaignTemplatesPage() {
 
   return (
     <>
-      <PageHeader title="Campaign templates" description="Reusable defaults for new campaigns (wizard still manual in v1)." />
+      <PageHeader title="Campaign templates" description="Save common campaign settings to reuse across launches." />
 
       <form action={createCampaignTemplateAction} className="mt-8 grid gap-4 rounded-xl border border-border/80 p-4 md:grid-cols-2">
         <div className="grid gap-2 md:col-span-2">
@@ -51,13 +52,13 @@ export default async function CampaignTemplatesPage() {
           <Input id="t-win" name="time_window_hours" type="number" min={1} defaultValue={48} />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="t-mpt">Max concurrent / tick</Label>
+          <Label htmlFor="t-mpt">Max sends per worker check</Label>
           <Input id="t-mpt" name="max_concurrent_per_tick" type="number" min={1} max={10} defaultValue={3} />
         </div>
         <div className="grid gap-2 md:col-span-2">
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="quiet_hours_enabled" className="size-4 accent-primary" />
-            Quiet hours (01:00–06:00 defaults in DB unless you extend the form)
+            Quiet hours (default overnight pause 01:00–06:00; adjust below)
           </label>
         </div>
         <div className="grid gap-2">
@@ -70,7 +71,7 @@ export default async function CampaignTemplatesPage() {
         </div>
         <div className="grid gap-2">
           <Label htmlFor="t-cap">Daily cap (optional)</Label>
-          <Input id="t-cap" name="daily_cap" type="number" min={1} placeholder="empty" />
+          <Input id="t-cap" name="daily_cap" type="number" min={1} placeholder="Leave blank for no cap" />
         </div>
         <div className="md:col-span-2">
           <Button type="submit">Save template</Button>

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { createPreviewCampaignAction, uploadCampaignCsvAction } from "@/app/(app)/campaigns/actions";
 import { HelpTip } from "@/components/help-tip";
+import { LabeledField } from "@/components/labeled-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -160,7 +161,7 @@ export function CampaignWizard({
       fd.set("file", file);
       const { path } = await uploadCampaignCsvAction(fd);
       setSourceCsvPath(path);
-      toast.success("CSV archived to Storage");
+      toast.success("Saved a copy of your CSV for your records.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -264,22 +265,19 @@ export function CampaignWizard({
             <CardDescription>Campaign name and optional source label.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="c-name">Campaign name</Label>
+            <LabeledField id="c-name" label="Campaign name" tipId="wizard.name">
               <Input id="c-name" value={name} onChange={(e) => setName(e.target.value)} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="c-src">Source label (optional)</Label>
+            </LabeledField>
+            <LabeledField id="c-src" label="Source label (optional)" tipId="wizard.sourceLabel">
               <Input
                 id="c-src"
                 value={sourceLabel}
                 onChange={(e) => setSourceLabel(e.target.value)}
                 placeholder="blackfriday-list-2026"
               />
-            </div>
+            </LabeledField>
             {templates.length > 0 ? (
-              <div className="grid gap-2">
-                <Label htmlFor="c-tpl">Apply template (optional)</Label>
+              <LabeledField id="c-tpl" label="Apply template (optional)" tipId="wizard.template">
                 <select
                   id="c-tpl"
                   className="h-9 rounded-lg border border-input bg-transparent px-2 text-sm"
@@ -293,7 +291,7 @@ export function CampaignWizard({
                     </option>
                   ))}
                 </select>
-              </div>
+              </LabeledField>
             ) : null}
           </CardContent>
         </Card>
@@ -311,8 +309,7 @@ export function CampaignWizard({
                 No active autoresponders found. Create one first.
               </p>
             ) : (
-              <div className="grid gap-2">
-                <Label htmlFor="c-ar">Account</Label>
+              <LabeledField id="c-ar" label="Account" tipId="wizard.ar">
                 <select
                   id="c-ar"
                   className="h-9 rounded-lg border border-input bg-transparent px-2 text-sm"
@@ -325,7 +322,7 @@ export function CampaignWizard({
                     </option>
                   ))}
                 </select>
-              </div>
+              </LabeledField>
             )}
           </CardContent>
         </Card>
@@ -336,14 +333,13 @@ export function CampaignWizard({
           <CardHeader>
             <CardTitle>Leads</CardTitle>
             <CardDescription>
-              One email per line (max 5000), or import a CSV (header row with an “email” column). Optionally
-              archive the same CSV to Supabase Storage for audit.
+              One email per line (up to 5,000), or import a CSV with a header row that includes an email column.
+              Optionally save a copy of the same file for your records.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex flex-wrap gap-3">
-              <div className="grid gap-1">
-                <Label htmlFor="c-csv-merge">Merge from CSV file</Label>
+              <LabeledField id="c-csv-merge" label="Merge from CSV file" tipId="wizard.leads">
                 <input
                   id="c-csv-merge"
                   type="file"
@@ -355,9 +351,8 @@ export function CampaignWizard({
                     if (f) void mergeEmailsFromCsvFile(f);
                   }}
                 />
-              </div>
-              <div className="grid gap-1">
-                <Label htmlFor="c-csv-store">Archive CSV to Storage (optional)</Label>
+              </LabeledField>
+              <LabeledField id="c-csv-store" label="Save CSV copy (optional)" tipId="wizard.csvArchive">
                 <input
                   id="c-csv-store"
                   type="file"
@@ -370,7 +365,7 @@ export function CampaignWizard({
                     if (f) void onArchiveCsvUpload(f);
                   }}
                 />
-              </div>
+              </LabeledField>
             </div>
             {sourceCsvPath ? (
               <p className="font-mono text-[11px] text-muted-foreground">
@@ -399,8 +394,7 @@ export function CampaignWizard({
             <CardDescription>Window length, start time, and quiet hours.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="c-win">Time window (hours)</Label>
+            <LabeledField id="c-win" label="Time window (hours)" tipId="wizard.window">
               <Input
                 id="c-win"
                 type="number"
@@ -408,17 +402,20 @@ export function CampaignWizard({
                 value={timeWindowHours}
                 onChange={(e) => setTimeWindowHours(Number(e.target.value))}
               />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="c-start">Start (local)</Label>
+            </LabeledField>
+            <LabeledField id="c-start" label="Start (local)" tipId="wizard.start">
               <Input
                 id="c-start"
                 type="datetime-local"
                 value={startsAtLocal}
                 onChange={(e) => setStartsAtLocal(e.target.value)}
               />
-            </div>
+            </LabeledField>
             <div className="grid gap-2 md:col-span-2">
+              <div className="flex items-center gap-2 text-sm font-medium leading-none">
+                <span>Quiet hours enabled</span>
+                <HelpTip id="campaign.quiet" />
+              </div>
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -426,23 +423,19 @@ export function CampaignWizard({
                   onChange={(e) => setQuietEnabled(e.target.checked)}
                   className="size-4 accent-primary"
                 />
-                Quiet hours enabled
+                <span className="text-muted-foreground">Pause scheduling inside the window below</span>
               </label>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="c-qs">Quiet start</Label>
+            <LabeledField id="c-qs" label="Quiet start" tipId="campaign.quiet">
               <Input id="c-qs" value={quietStart} onChange={(e) => setQuietStart(e.target.value)} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="c-qe">Quiet end</Label>
+            </LabeledField>
+            <LabeledField id="c-qe" label="Quiet end" tipId="campaign.quiet">
               <Input id="c-qe" value={quietEnd} onChange={(e) => setQuietEnd(e.target.value)} />
-            </div>
-            <div className="grid gap-2 md:col-span-2">
-              <Label htmlFor="c-tz">IANA timezone</Label>
+            </LabeledField>
+            <LabeledField id="c-tz" label="IANA timezone" tipId="wizard.tz" className="md:col-span-2">
               <Input id="c-tz" value={quietTz} onChange={(e) => setQuietTz(e.target.value)} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="c-mpt">Max concurrent per tick</Label>
+            </LabeledField>
+            <LabeledField id="c-mpt" label="Max sends per worker check" tipId="campaign.mpt">
               <Input
                 id="c-mpt"
                 type="number"
@@ -451,7 +444,7 @@ export function CampaignWizard({
                 value={maxConcurrentPerTick}
                 onChange={(e) => setMaxConcurrentPerTick(Number(e.target.value))}
               />
-            </div>
+            </LabeledField>
           </CardContent>
         </Card>
       ) : null}

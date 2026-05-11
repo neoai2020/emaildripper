@@ -1,8 +1,5 @@
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -12,13 +9,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getServiceSupabase } from "@/lib/db";
+import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 
-import { createCsvMappingAction, deleteCsvMappingAction } from "../actions";
+import { CsvMappingCreateForm } from "./csv-mapping-create-form";
+import { deleteCsvMappingAction } from "../actions";
 
 export default async function CsvMappingsPage() {
   const sb = getServiceSupabase();
   if (!sb) {
-    return <PageHeader title="CSV column mappings" description="Connect Supabase to manage saved maps." />;
+    return <PageHeader title="CSV column mappings" description={UNCONFIGURED_APP} />;
   }
 
   const { data: rows, error } = await sb
@@ -32,26 +31,10 @@ export default async function CsvMappingsPage() {
     <>
       <PageHeader
         title="CSV column mappings"
-        description='Store JSON field maps (e.g. {"email":"Email Address"}) for reuse across imports.'
+        description="Save column-name mappings so re-importing from the same source skips the mapping step."
       />
 
-      <form action={createCsvMappingAction} className="mt-8 space-y-4 rounded-xl border border-border/80 p-4">
-        <div className="grid gap-2">
-          <Label htmlFor="m-name">Name</Label>
-          <Input id="m-name" name="name" required placeholder="AWeber export" />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="m-json">Field map JSON</Label>
-          <Textarea
-            id="m-json"
-            name="field_map_json"
-            rows={6}
-            className="font-mono text-xs"
-            defaultValue={'{\n  "email": "Email"\n}'}
-          />
-        </div>
-        <Button type="submit">Save mapping</Button>
-      </form>
+      <CsvMappingCreateForm />
 
       <div className="mt-10 rounded-xl border border-border/80">
         <Table>

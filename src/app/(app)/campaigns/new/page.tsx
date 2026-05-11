@@ -28,7 +28,7 @@ export default async function NewCampaignPage() {
       <div className="mb-6 flex items-center justify-between gap-4">
         <PageHeader
           title="New campaign"
-          description="Wizard with optional saved template, CSV paste or file merge, schedule, tag, then pre-flight preview."
+          description="Set up a new drip campaign."
         />
         <Link href="/campaigns" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
           Back

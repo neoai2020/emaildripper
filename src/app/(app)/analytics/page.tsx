@@ -10,13 +10,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getServiceSupabase } from "@/lib/db";
+import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 
 import { DailySendsChart, SendsByArChart } from "./analytics-charts";
 
 export default async function AnalyticsPage() {
   const sb = getServiceSupabase();
   if (!sb) {
-    return <PageHeader title="Analytics" description="Connect Supabase to load analytics." />;
+    return <PageHeader title="Analytics" description={UNCONFIGURED_APP} />;
   }
 
   const since = subDays(new Date(), 14).toISOString();
@@ -95,7 +96,7 @@ export default async function AnalyticsPage() {
     <>
       <PageHeader
         title="Analytics"
-        description="Last 14 days of sends, webhook attempt failures (from lead logs), and recent tick health."
+        description="Last 14 days of successful sends, Make.com delivery errors, and how often the sender ran."
       />
 
       <div className="mt-8 grid gap-8 lg:grid-cols-2">
@@ -114,12 +115,12 @@ export default async function AnalyticsPage() {
       </div>
 
       <div className="mt-10">
-        <h2 className="mb-3 font-heading text-sm font-semibold">Webhook failures (14d, by log message)</h2>
+        <h2 className="mb-3 font-heading text-sm font-semibold">Make.com delivery errors (14 days)</h2>
         <div className="rounded-xl border border-border/80">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>error_message</TableHead>
+                <TableHead>Error message</TableHead>
                 <TableHead className="text-right">Count</TableHead>
               </TableRow>
             </TableHeader>
@@ -144,7 +145,7 @@ export default async function AnalyticsPage() {
       </div>
 
       <div className="mt-10">
-        <h2 className="mb-3 font-heading text-sm font-semibold">Recent ticks</h2>
+        <h2 className="mb-3 font-heading text-sm font-semibold">Recent sender runs</h2>
         <div className="rounded-xl border border-border/80">
           <Table>
             <TableHeader>
@@ -152,14 +153,14 @@ export default async function AnalyticsPage() {
                 <TableHead>At (UTC)</TableHead>
                 <TableHead>Processed</TableHead>
                 <TableHead>Errors</TableHead>
-                <TableHead>Duration ms</TableHead>
+                <TableHead>Duration (ms)</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {(ticks ?? []).length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
-                    No tick rows yet.
+                    No sender runs recorded yet.
                   </TableCell>
                 </TableRow>
               ) : (

@@ -1,11 +1,13 @@
 "use client";
 
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
 import {
   Bar,
   BarChart,
   CartesianGrid,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -29,25 +31,42 @@ import {
 
 export type HourlyRow = { hour: string; sends: number };
 
+export type PreviewSummary = {
+  arEmail: string | null;
+  dailyCap: number | null;
+  warmup: boolean;
+  totalLeads: number;
+  startsAt: string | null;
+  endsAt: string | null;
+  tag: string;
+};
+
 export function CampaignPreviewClient({
   campaignId,
   status,
   hourly,
   firstLeads,
+  summary,
 }: {
   campaignId: string;
   status: string;
   hourly: HourlyRow[];
   firstLeads: { email: string; scheduled_at: string }[];
+  summary: PreviewSummary;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [dryRun, setDryRun] = useState(false);
 
   function activate() {
     startTransition(async () => {
       try {
-        await activatePreviewCampaignAction(campaignId);
-        toast.success("Campaign is now running");
+        const fd = new FormData();
+        if (dryRun) fd.set("dry_run", "on");
+        await activatePreviewCampaignAction(campaignId, fd);
+        toast.success(dryRun ? "Dry-run campaign is now running" : "Campaign is now running");
+        dialogRef.current?.close();
         router.push(`/campaigns/${campaignId}`);
         router.refresh();
       } catch (e) {
@@ -73,9 +92,68 @@ export function CampaignPreviewClient({
 
   return (
     <div className="space-y-8">
+      <div className="grid gap-4 rounded-xl border border-border/80 p-4 md:grid-cols-2">
+        <div>
+          <h2 className="font-heading text-sm font-semibold text-foreground">Summary</h2>
+          <dl className="mt-3 space-y-2 text-sm text-muted-foreground">
+            <div className="flex justify-between gap-4">
+              <dt>Autoresponder email</dt>
+              <dd className="font-mono text-xs text-foreground">{summary.arEmail ?? "—"}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt>Tag</dt>
+              <dd className="font-mono text-xs text-foreground">{summary.tag}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt>Leads</dt>
+              <dd className="font-mono text-xs text-foreground">{summary.totalLeads}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt>Daily cap (AR)</dt>
+              <dd className="font-mono text-xs text-foreground">
+                {summary.dailyCap != null ? summary.dailyCap : "Unlimited"}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt>Warmup</dt>
+              <dd className="text-foreground">{summary.warmup ? "Enabled" : "Off"}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt>Window (UTC)</dt>
+              <dd className="max-w-[220px] text-right font-mono text-[10px] text-foreground">
+                {summary.startsAt ? new Date(summary.startsAt).toISOString() : "—"} →{" "}
+                {summary.endsAt ? new Date(summary.endsAt).toISOString() : "—"}
+              </dd>
+            </div>
+          </dl>
+        </div>
+        <div>
+          <h2 className="font-heading text-sm font-semibold text-foreground">Timeline (sends / hour)</h2>
+          <p className="mt-1 text-xs text-muted-foreground">Line shows the same buckets as the bar chart.</p>
+          <div className="mt-3 h-40 w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={hourly} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
+                <XAxis dataKey="hour" tick={{ fontSize: 10 }} />
+                <YAxis allowDecimals={false} width={28} tick={{ fontSize: 10 }} />
+                <Tooltip
+                  contentStyle={{
+                    background: "hsl(var(--popover))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                />
+                <Line type="monotone" dataKey="sends" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
       {hourly.length > 0 ? (
         <div className="rounded-xl border border-border/80 p-4">
-          <h2 className="mb-4 font-heading text-sm font-semibold">Scheduled sends by hour (window)</h2>
+          <h2 className="mb-4 font-heading text-sm font-semibold">Histogram (sends by hour bucket)</h2>
           <div className="h-64 w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={hourly} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -129,11 +207,42 @@ export function CampaignPreviewClient({
         </Table>
       </div>
 
+      <dialog
+        ref={dialogRef}
+        className="fixed left-1/2 top-1/2 w-[min(100%,440px)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-background p-6 text-sm shadow-xl"
+      >
+        <h3 className="font-heading text-base font-semibold text-foreground">Confirm launch</h3>
+        <p className="mt-2 text-muted-foreground">
+          You are about to move this campaign from preview to <strong className="text-foreground">running</strong>.
+          Your one-minute timer must already be calling this app with the correct secret, or sends will stall.
+        </p>
+        <label className="mt-4 flex cursor-pointer items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={dryRun}
+            onChange={(e) => setDryRun(e.target.checked)}
+            className="mt-1 size-4 accent-primary"
+          />
+          <span>
+            <strong className="text-foreground">Dry run</strong> — mark sends as successful without calling Make.com
+            (only for testing counters and timing).
+          </span>
+        </label>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={() => dialogRef.current?.close()}>
+            Back
+          </Button>
+          <Button type="button" disabled={pending} onClick={activate}>
+            {pending ? "Working…" : "Confirm launch"}
+          </Button>
+        </div>
+      </dialog>
+
       <div className="flex flex-wrap gap-2">
         {isPreview ? (
           <>
-            <Button type="button" onClick={activate} disabled={pending}>
-              {pending ? "Working…" : "Launch campaign"}
+            <Button type="button" onClick={() => dialogRef.current?.showModal()} disabled={pending}>
+              Launch campaign…
             </Button>
             <Button type="button" variant="outline" onClick={discard} disabled={pending}>
               Discard preview

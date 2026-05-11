@@ -42,7 +42,7 @@ async function insertCampaignWithLeads(
 
   const { data: ar, error: arErr } = await sb
     .from("autoresponders")
-    .select("id,name,is_active")
+    .select("id,name,is_active,daily_cap")
     .eq("id", input.autoresponderId)
     .maybeSingle();
   if (arErr) throw new Error(arErr.message);
@@ -80,7 +80,8 @@ async function insertCampaignWithLeads(
   const startsAt = new Date(input.startsAtIso);
   if (Number.isNaN(startsAt.getTime())) throw new Error("Invalid startsAt");
 
-  const endsAt = new Date(startsAt.getTime() + input.timeWindowHours * 3600_000);
+  let endsAt = new Date(startsAt.getTime() + input.timeWindowHours * 3600_000);
+  const originalEndsAt = new Date(endsAt.getTime());
 
   const { data: settingsRow } = await sb
     .from("settings")
@@ -89,22 +90,55 @@ async function insertCampaignWithLeads(
     .maybeSingle();
   const rand = parseRandomizationSettings(settingsRow?.randomization_settings);
 
-  const schedule = buildFeelsHumanSchedule({
-    count: withMx.length,
-    windowStart: startsAt,
-    windowEnd: endsAt,
-    timeZone: input.quietTz,
-    quietHoursEnabled: input.quietHoursEnabled,
-    quietStart: input.quietStart,
-    quietEnd: input.quietEnd,
-    maxPerBucket: input.maxConcurrentPerTick,
-    gapFloor: rand.gapFloor,
-    burst2: rand.burst2,
-    burst3: rand.burst3,
-  });
+  const dailyCap = ar.daily_cap != null && Number.isFinite(Number(ar.daily_cap)) ? Number(ar.daily_cap) : null;
+  const capActive = dailyCap != null && dailyCap > 0;
 
-  if (schedule.length !== withMx.length) {
-    throw new Error(`Scheduler mismatch (${schedule.length} vs ${withMx.length}).`);
+  let schedule: Date[] = [];
+  let capSatisfied = !capActive;
+  for (let iter = 0; iter < 400; iter++) {
+    schedule = buildFeelsHumanSchedule({
+      count: withMx.length,
+      windowStart: startsAt,
+      windowEnd: endsAt,
+      timeZone: input.quietTz,
+      quietHoursEnabled: input.quietHoursEnabled,
+      quietStart: input.quietStart,
+      quietEnd: input.quietEnd,
+      maxPerBucket: input.maxConcurrentPerTick,
+      gapFloor: rand.gapFloor,
+      burst2: rand.burst2,
+      burst3: rand.burst3,
+      intraBucketJitter: rand.intraBucketJitter,
+    });
+
+    if (schedule.length !== withMx.length) {
+      throw new Error(`Scheduler mismatch (${schedule.length} vs ${withMx.length}).`);
+    }
+
+    if (!capActive) {
+      capSatisfied = true;
+      break;
+    }
+
+    const perDay = new Map<string, number>();
+    let maxInDay = 0;
+    for (const t of schedule) {
+      const key = t.toISOString().slice(0, 10);
+      const n = (perDay.get(key) ?? 0) + 1;
+      perDay.set(key, n);
+      if (n > maxInDay) maxInDay = n;
+    }
+    if (maxInDay <= dailyCap!) {
+      capSatisfied = true;
+      break;
+    }
+    endsAt = new Date(endsAt.getTime() + 24 * 3600_000);
+  }
+
+  if (!capSatisfied) {
+    throw new Error(
+      "Could not fit this many leads under the autoresponder daily cap — shorten the list, raise the cap, or widen the window."
+    );
   }
 
   const masterByEmail = await ensureMasterLeadIds(sb, withMx, input.sourceLabel ?? null);
@@ -122,7 +156,7 @@ async function insertCampaignWithLeads(
       time_window_hours: input.timeWindowHours,
       starts_at: startsAt.toISOString(),
       ends_at: endsAt.toISOString(),
-      original_ends_at: endsAt.toISOString(),
+      original_ends_at: originalEndsAt.toISOString(),
       randomization_mode: "feels_human",
       max_concurrent_per_tick: input.maxConcurrentPerTick,
       quiet_hours_enabled: input.quietHoursEnabled,
@@ -195,7 +229,11 @@ export async function launchCampaignAction(raw: LaunchCampaignInput): Promise<{ 
 }
 
 export async function activatePreviewCampaignAction(campaignId: string, formData?: FormData) {
-  void formData;
+  const dryRun =
+    formData?.get("dry_run") === "on" ||
+    formData?.get("dry_run") === "true" ||
+    formData?.get("dry_run") === "1";
+
   const sb = requireServiceSupabase();
   const { data: row, error: gErr } = await sb
     .from("campaigns")
@@ -212,6 +250,7 @@ export async function activatePreviewCampaignAction(campaignId: string, formData
     .update({
       status: "running",
       launched_at: new Date().toISOString(),
+      dry_run: dryRun,
     })
     .eq("id", campaignId)
     .eq("status", "previewing");
@@ -221,7 +260,7 @@ export async function activatePreviewCampaignAction(campaignId: string, formData
     action: "campaign_launched",
     entityType: "campaign",
     entityId: campaignId,
-    details: { from: "preview" },
+    details: { from: "preview", dry_run: dryRun },
   });
 
   revalidatePath("/campaigns");
@@ -305,6 +344,23 @@ export async function resumeCampaignAction(campaignId: string) {
     .eq("id", campaignId);
   if (u2) throw new Error(u2.message);
 
+  const { data: endsRow } = await sb.from("campaigns").select("ends_at").eq("id", campaignId).maybeSingle();
+  const { data: maxPending } = await sb
+    .from("campaign_leads")
+    .select("scheduled_at")
+    .eq("campaign_id", campaignId)
+    .eq("status", "pending")
+    .order("scheduled_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (endsRow?.ends_at && maxPending?.scheduled_at) {
+    const endT = new Date(endsRow.ends_at as string).getTime();
+    const maxT = new Date(maxPending.scheduled_at as string).getTime();
+    if (maxT > endT) {
+      await sb.from("campaigns").update({ ends_at: maxPending.scheduled_at }).eq("id", campaignId);
+    }
+  }
+
   await writeAuditLog({
     action: "campaign_resumed",
     entityType: "campaign",
@@ -340,7 +396,8 @@ export async function cancelCampaignAction(campaignId: string) {
   revalidatePath("/campaigns");
 }
 
-const MAX_CSV_UPLOAD_BYTES = 6 * 1024 * 1024;
+/** PRD §8 — large list uploads */
+const MAX_CSV_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 export async function uploadCampaignCsvAction(formData: FormData): Promise<{ path: string }> {
   const file = formData.get("file");

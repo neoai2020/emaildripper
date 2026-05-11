@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/page-header";
 
 export function ComingSoon({
   title,
-  description = "Scaffold only — implementation lands in later PRD phases.",
+  description = "This screen is not wired up yet.",
 }: {
   title: string;
   description?: string;
@@ -10,9 +10,7 @@ export function ComingSoon({
   return (
     <>
       <PageHeader title={title} description={description} />
-      <p className="font-mono text-xs text-muted-foreground">
-        Phase 0 route shell — connect Supabase and GitHub when ready.
-      </p>
+      <p className="text-xs text-muted-foreground">Check back after the next release, or ask your developer for a timeline.</p>
     </>
   );
 }

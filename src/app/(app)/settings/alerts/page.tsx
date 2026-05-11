@@ -3,13 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getServiceSupabase } from "@/lib/db";
+import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 
 import { updateAlertsAction } from "../actions";
 
 export default async function SettingsAlertsPage() {
   const sb = getServiceSupabase();
   if (!sb) {
-    return <PageHeader title="Alerts" description="Connect Supabase to configure alert channels." />;
+    return <PageHeader title="Alerts" description={UNCONFIGURED_APP} />;
   }
 
   const { data: row, error } = await sb
@@ -23,7 +24,7 @@ export default async function SettingsAlertsPage() {
     <>
       <PageHeader
         title="Alerts"
-        description="Stored for future notification workers. Nothing is sent from this page yet — wire your Make scenarios or a small notifier service when ready."
+        description="Where to send alerts when something needs your attention (Telegram today; email when configured)."
       />
 
       <form action={updateAlertsAction} className="mt-8 max-w-lg space-y-5 rounded-xl border border-border/80 p-6">

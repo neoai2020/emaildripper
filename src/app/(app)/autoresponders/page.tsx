@@ -12,6 +12,7 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { getServiceSupabase } from "@/lib/db";
+import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 import { cn } from "@/lib/utils";
 
 export default async function AutorespondersPage() {
@@ -22,7 +23,7 @@ export default async function AutorespondersPage() {
       <>
         <PageHeader
           title="Autoresponders"
-          description="Configure Make webhook targets per account. Connect Supabase to load data."
+          description={UNCONFIGURED_APP}
         />
       </>
     );
@@ -42,7 +43,7 @@ export default async function AutorespondersPage() {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <PageHeader
           title="Autoresponders"
-          description="One Make scenario per row. Secrets stay server-side; use the service role in production."
+          description="Each autoresponder connects to one Make.com webhook. Webhook addresses and signing secrets stay on the server."
         />
         <Link href="/autoresponders/new" className={cn(buttonVariants())}>
           Add autoresponder

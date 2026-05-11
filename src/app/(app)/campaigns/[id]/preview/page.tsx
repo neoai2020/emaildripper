@@ -5,9 +5,10 @@ import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getServiceSupabase } from "@/lib/db";
+import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 import { cn } from "@/lib/utils";
 
-import { CampaignPreviewClient, type HourlyRow } from "./campaign-preview-client";
+import { CampaignPreviewClient, type HourlyRow, type PreviewSummary } from "./campaign-preview-client";
 
 function buildHourlyBuckets(
   startsAt: Date,
@@ -42,7 +43,7 @@ export default async function CampaignPreviewPage({ params }: { params: { id: st
   const sb = getServiceSupabase();
   if (!sb) {
     return (
-      <PageHeader title="Pre-flight preview" description="Connect Supabase to load this preview." />
+      <PageHeader title="Pre-flight preview" description={UNCONFIGURED_APP} />
     );
   }
 
@@ -69,11 +70,27 @@ export default async function CampaignPreviewPage({ params }: { params: { id: st
     .order("scheduled_at", { ascending: true })
     .limit(20);
 
+  const { data: ar } = await sb
+    .from("autoresponders")
+    .select("account_email,daily_cap,warmup_enabled")
+    .eq("id", c.autoresponder_id as string)
+    .maybeSingle();
+
+  const summary: PreviewSummary = {
+    arEmail: (ar?.account_email as string | null) ?? null,
+    dailyCap: ar?.daily_cap != null ? Number(ar.daily_cap) : null,
+    warmup: Boolean(ar?.warmup_enabled),
+    totalLeads: Number(c.total_leads ?? 0),
+    startsAt: (c.starts_at as string | null) ?? null,
+    endsAt: (c.ends_at as string | null) ?? null,
+    tag: String(c.tag ?? ""),
+  };
+
   return (
     <>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <PageHeader title={c.name} description="Pre-flight preview — review pacing before going live." />
+          <PageHeader title={c.name} description="Review send timing before you start this campaign." />
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge variant="outline">{c.status}</Badge>
             <span className="text-sm text-muted-foreground">
@@ -92,6 +109,7 @@ export default async function CampaignPreviewPage({ params }: { params: { id: st
         status={c.status as string}
         hourly={hourly}
         firstLeads={(firstRows ?? []) as { email: string; scheduled_at: string }[]}
+        summary={summary}
       />
     </>
   );

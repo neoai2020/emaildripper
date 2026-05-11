@@ -10,7 +10,7 @@ export default function NewAutoresponderPage() {
   return (
     <>
       <div className="mb-6 flex items-center justify-between gap-4">
-        <PageHeader title="New autoresponder" description="Maps to one Make.com scenario + AR module." />
+        <PageHeader title="New autoresponder" description="One row here connects to one automated scenario in Make.com." />
         <Link href="/autoresponders" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
           Back to list
         </Link>

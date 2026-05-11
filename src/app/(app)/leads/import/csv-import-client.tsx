@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import Papa from "papaparse";
 import { toast } from "sonner";
 
@@ -12,6 +12,38 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 type Col = { key: string; label: string };
+
+const MAX_CSV_BYTES = 50 * 1024 * 1024;
+
+function ImportCheckSummaryCard({ result }: { result: Record<string, unknown> }) {
+  if (result.ok !== true) return null;
+  const total = Number(result.total_input ?? 0);
+  const validSyntax = Number(result.valid_syntax ?? 0);
+  const mxOk = Number(result.mx_ok ?? 0);
+  const mxFail = Number(result.mx_fail ?? 0);
+  const suppressed = Number(result.suppressed ?? 0);
+  const eligible = Number(result.eligible ?? 0);
+  const samples = Array.isArray(result.sample_eligible) ? (result.sample_eligible as string[]) : [];
+  return (
+    <div className="rounded-xl border border-border/80 bg-muted/20 p-4 text-sm">
+      <p className="font-medium text-foreground">Check results</p>
+      <ul className="mt-3 list-inside list-disc space-y-1 text-muted-foreground">
+        <li>Rows you pasted: {total}</li>
+        <li>Valid-looking addresses: {validSyntax}</li>
+        <li>Passed inbox-provider check: {mxOk}</li>
+        <li>Failed inbox-provider check: {mxFail}</li>
+        <li>On your suppression list: {suppressed}</li>
+        <li className="font-medium text-foreground">Ready to import: {eligible}</li>
+      </ul>
+      {samples.length > 0 ? (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Examples that passed: {samples.slice(0, 5).join(", ")}
+          {samples.length > 5 ? "…" : ""}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 export type CsvMappingOption = {
   id: string;
@@ -38,16 +70,25 @@ export function CsvImportClient({ mappings }: { mappings: CsvMappingOption[] }) 
       toast.info("Parse CSV first, then pick a saved mapping.");
       return;
     }
-    const fm = m.field_map;
-    const headerRaw = fm.email ?? fm.Email ?? fm["email_address"];
-    const header = headerRaw != null ? String(headerRaw).trim() : "";
-    if (!header) {
-      toast.error('Mapping has no "email" key in field_map JSON.');
+    const fm = m.field_map as Record<string, unknown>;
+    let emailHeader = "";
+    for (const [csvHeader, field] of Object.entries(fm)) {
+      if (String(field).trim().toLowerCase() === "email") {
+        emailHeader = String(csvHeader).trim();
+        break;
+      }
+    }
+    if (!emailHeader) {
+      const headerRaw = fm.email ?? fm.Email ?? fm["email_address"];
+      emailHeader = headerRaw != null ? String(headerRaw).trim() : "";
+    }
+    if (!emailHeader) {
+      toast.error("This saved mapping does not say which column holds email addresses.");
       return;
     }
-    const match = cols.find((c) => c.label.trim().toLowerCase() === header.toLowerCase());
+    const match = cols.find((c) => c.label.trim().toLowerCase() === emailHeader.toLowerCase());
     if (!match) {
-      toast.error(`No column header matching “${header}”.`);
+      toast.error(`No column header matching “${emailHeader}”.`);
       return;
     }
     setEmailCol(match.key);
@@ -72,6 +113,26 @@ export function CsvImportClient({ mappings }: { mappings: CsvMappingOption[] }) 
     }
     return out;
   }, [cols, rows, emailCol]);
+
+  const loadCsvText = useCallback((raw: string, label: string) => {
+    const bytes = new TextEncoder().encode(raw).length;
+    if (bytes > MAX_CSV_BYTES) {
+      toast.error(`CSV too large (max ${MAX_CSV_BYTES / (1024 * 1024)} MB).`);
+      return;
+    }
+    setText(raw);
+    toast.success(`${label} (${Math.round(bytes / 1024)} KB)`);
+  }, []);
+
+  async function onFileSelected(file: File | undefined | null) {
+    if (!file) return;
+    if (file.size > MAX_CSV_BYTES) {
+      toast.error(`File exceeds ${MAX_CSV_BYTES / (1024 * 1024)} MB.`);
+      return;
+    }
+    const raw = await file.text();
+    loadCsvText(raw, file.name);
+  }
 
   function parseCsv() {
     const res = Papa.parse<string[]>(text, { header: false, skipEmptyLines: true });
@@ -125,7 +186,7 @@ export function CsvImportClient({ mappings }: { mappings: CsvMappingOption[] }) 
           emails: extracted,
           sourceLabel: sourceLabel.trim() || null,
         });
-        toast.success(`Upserted ${upserted} emails into master leads`);
+        toast.success(`Saved ${upserted} email address${upserted === 1 ? "" : "es"} to your master list (new or updated).`);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Import failed");
       }
@@ -138,13 +199,37 @@ export function CsvImportClient({ mappings }: { mappings: CsvMappingOption[] }) 
         <Label htmlFor="csv">Paste CSV (include header row)</Label>
         <HelpTip id="leads.import" />
       </div>
+      <div
+        className="rounded-xl border border-dashed border-border/80 bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground"
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          const f = e.dataTransfer.files?.[0];
+          if (f) void onFileSelected(f);
+        }}
+      >
+        <input
+          type="file"
+          accept=".csv,text/csv"
+          className="mb-3 block w-full text-xs file:mr-2 file:rounded file:border file:bg-muted file:px-2 file:py-1"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            void onFileSelected(f);
+          }}
+        />
+        Or drag-and-drop a CSV here (max 50 MB).
+      </div>
       <Textarea
         id="csv"
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={10}
         className="font-mono text-xs"
-        placeholder="email,first_name&#10;a@b.com,Ann"
+        placeholder={"email,first name\nyou@example.com,Jane"}
       />
       <Button type="button" variant="secondary" onClick={parseCsv} disabled={pending || !text.trim()}>
         Parse CSV
@@ -188,25 +273,21 @@ export function CsvImportClient({ mappings }: { mappings: CsvMappingOption[] }) 
             <Input id="src" value={sourceLabel} onChange={(e) => setSourceLabel(e.target.value)} />
           </div>
           <p className="text-sm text-muted-foreground">
-            Extracted <span className="font-mono text-foreground">{extracted.length}</span> unique-looking
-            addresses from column mapping.
+            Extracted <span className="font-mono text-foreground">{extracted.length}</span> unique addresses using your
+            column choice.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={runChecks} disabled={pending}>
               Run MX / suppression check
             </Button>
             <Button type="button" onClick={upsert} disabled={pending}>
-              Upsert to master leads
+              Save to master list
             </Button>
           </div>
         </div>
       ) : null}
 
-      {checkResult ? (
-        <pre className="overflow-x-auto rounded-lg bg-muted p-4 font-mono text-xs">
-          {JSON.stringify(checkResult, null, 2)}
-        </pre>
-      ) : null}
+      {checkResult ? <ImportCheckSummaryCard result={checkResult} /> : null}
     </div>
   );
 }

@@ -3,13 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getServiceSupabase } from "@/lib/db";
+import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 
 import { updatePreferencesAction } from "../actions";
 
 export default async function SettingsPreferencesPage() {
   const sb = getServiceSupabase();
   if (!sb) {
-    return <PageHeader title="Preferences" description="Connect Supabase to edit settings." />;
+    return <PageHeader title="Preferences" description={UNCONFIGURED_APP} />;
   }
 
   const { data: row, error } = await sb.from("settings").select("tooltips_enabled,default_tz").eq("id", 1).single();
@@ -17,7 +18,7 @@ export default async function SettingsPreferencesPage() {
 
   return (
     <>
-      <PageHeader title="Preferences" description="Control in-app hints and the default IANA timezone label." />
+      <PageHeader title="Preferences" description="Turn help bubbles on or off and set the default timezone label for new campaigns." />
 
       <form action={updatePreferencesAction} className="mt-8 max-w-md space-y-6 rounded-xl border border-border/80 p-6">
         <div className="flex items-center gap-3">

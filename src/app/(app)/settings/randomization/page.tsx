@@ -1,12 +1,13 @@
 import { PageHeader } from "@/components/page-header";
 import { getServiceSupabase } from "@/lib/db";
+import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 
 import { RandomizationForm } from "./randomization-form";
 
 export default async function SettingsRandomizationPage() {
   const sb = getServiceSupabase();
   if (!sb) {
-    return <PageHeader title="Randomization" description="Connect Supabase to edit tunables." />;
+    return <PageHeader title="Randomization" description={UNCONFIGURED_APP} />;
   }
 
   const { data: row, error } = await sb
@@ -22,7 +23,7 @@ export default async function SettingsRandomizationPage() {
     <>
       <PageHeader
         title="Randomization tuning"
-        description="Adjust feels-human pacing parameters. The chart previews a synthetic 240-lead campaign."
+        description="Tune natural-looking send spacing. The chart shows a sample 240-person campaign for comparison."
       />
       <div className="mt-8">
         <RandomizationForm initial={initial} defaultTz={row.default_tz ?? "Europe/Vienna"} />

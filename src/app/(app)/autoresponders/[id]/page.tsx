@@ -9,6 +9,7 @@ import {
 } from "@/app/(app)/autoresponders/autoresponder-form";
 import { updateAutoresponderAction } from "@/app/(app)/autoresponders/actions";
 import { getServiceSupabase } from "@/lib/db";
+import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 import { cn } from "@/lib/utils";
 
 export default async function AutoresponderDetailPage({
@@ -20,7 +21,7 @@ export default async function AutoresponderDetailPage({
   if (!sb) {
     return (
       <>
-        <PageHeader title="Autoresponder" description="Connect Supabase to edit this record." />
+        <PageHeader title="Autoresponder" description={UNCONFIGURED_APP} />
       </>
     );
   }
@@ -46,7 +47,7 @@ export default async function AutoresponderDetailPage({
   return (
     <>
       <div className="mb-6 flex items-center justify-between gap-4">
-        <PageHeader title={data.name} description="Webhook URL, HMAC secret, caps, and warmup." />
+        <PageHeader title={data.name} description="Make.com link, signing secret, daily limits, and warmup curve." />
         <Link href="/autoresponders" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
           Back to list
         </Link>

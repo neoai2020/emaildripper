@@ -8,11 +8,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getServiceSupabase } from "@/lib/db";
+import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 
 export default async function MasterLeadsPage() {
   const sb = getServiceSupabase();
   if (!sb) {
-    return <PageHeader title="Master leads" description="Connect Supabase to browse deduped emails." />;
+    return <PageHeader title="Master leads" description={UNCONFIGURED_APP} />;
   }
 
   const { data: rows, error } = await sb
@@ -25,7 +26,7 @@ export default async function MasterLeadsPage() {
 
   return (
     <>
-      <PageHeader title="Master leads" description="Most recent 200 rows." />
+      <PageHeader title="Master leads" description="Every email ever imported. Up to 200 most recent addresses are shown here." />
       <div className="rounded-xl border border-border/80">
         <Table>
           <TableHeader>

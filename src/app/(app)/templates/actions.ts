@@ -69,7 +69,7 @@ export async function createCsvMappingAction(formData: FormData) {
   try {
     field_map = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
   } catch {
-    throw new Error("field_map must be valid JSON.");
+    throw new Error("That column map could not be read. Check brackets and commas, then try again.");
   }
 
   const { data, error } = await sb

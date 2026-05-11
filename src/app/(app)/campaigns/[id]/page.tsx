@@ -12,20 +12,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  activatePreviewCampaignAction,
-  cancelCampaignAction,
-  discardPreviewCampaignAction,
-  pauseCampaignAction,
-  resumeCampaignAction,
-} from "@/app/(app)/campaigns/actions";
+import { cancelCampaignAction, discardPreviewCampaignAction, pauseCampaignAction } from "@/app/(app)/campaigns/actions";
+import { ResumeCampaignPanel } from "@/app/(app)/campaigns/[id]/resume-campaign-panel";
 import { getServiceSupabase } from "@/lib/db";
+import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 import { cn } from "@/lib/utils";
 
 export default async function CampaignDetailPage({ params }: { params: { id: string } }) {
   const sb = getServiceSupabase();
   if (!sb) {
-    return <PageHeader title="Campaign" description="Connect Supabase to view this campaign." />;
+    return <PageHeader title="Campaign" description={UNCONFIGURED_APP} />;
   }
 
   const { data: c, error } = await sb.from("campaigns").select("*").eq("id", params.id).maybeSingle();
@@ -39,11 +35,22 @@ export default async function CampaignDetailPage({ params }: { params: { id: str
     .order("scheduled_at", { ascending: true })
     .limit(50);
 
+  let resumeInfo: { pending: number; shiftMs: number } | null = null;
+  if (c.status === "paused" && c.paused_at) {
+    const shiftMs = Date.now() - new Date(c.paused_at as string).getTime();
+    const { count } = await sb
+      .from("campaign_leads")
+      .select("id", { count: "exact", head: true })
+      .eq("campaign_id", params.id)
+      .eq("status", "pending");
+    resumeInfo = { pending: count ?? 0, shiftMs: Math.max(0, shiftMs) };
+  }
+
   return (
     <>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <PageHeader title={c.name} description={`Tag: ${c.tag}`} />
+          <PageHeader title={c.name} description={`Campaign tag: ${c.tag}`} />
           <div className="mt-2 flex flex-wrap gap-2">
             <Badge variant="outline">{c.status}</Badge>
             <span className="text-sm text-muted-foreground">
@@ -51,7 +58,7 @@ export default async function CampaignDetailPage({ params }: { params: { id: str
               {c.source_csv_path ? (
                 <>
                   {" · "}
-                  <span className="font-mono text-[11px]" title="Supabase Storage path">
+                  <span className="font-mono text-[11px]" title="Stored copy of the uploaded spreadsheet">
                     csv: {String(c.source_csv_path).slice(0, 48)}
                     {String(c.source_csv_path).length > 48 ? "…" : ""}
                   </span>
@@ -72,11 +79,9 @@ export default async function CampaignDetailPage({ params }: { params: { id: str
               >
                 Pre-flight preview
               </Link>
-              <form action={activatePreviewCampaignAction.bind(null, c.id)}>
-                <button type="submit" className={cn(buttonVariants({ size: "sm" }))}>
-                  Launch
-                </button>
-              </form>
+              <Link href={`/campaigns/${c.id}/preview`} className={cn(buttonVariants({ size: "sm" }))}>
+                {"Review & launch…"}
+              </Link>
               <form action={discardPreviewCampaignAction.bind(null, c.id)}>
                 <button type="submit" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
                   Discard preview
@@ -91,12 +96,8 @@ export default async function CampaignDetailPage({ params }: { params: { id: str
               </button>
             </form>
           ) : null}
-          {c.status === "paused" ? (
-            <form action={resumeCampaignAction.bind(null, c.id)}>
-              <button type="submit" className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}>
-                Resume
-              </button>
-            </form>
+          {c.status === "paused" && resumeInfo ? (
+            <ResumeCampaignPanel campaignId={c.id} pendingCount={resumeInfo.pending} shiftMs={resumeInfo.shiftMs} />
           ) : null}
           {c.status !== "cancelled" &&
           c.status !== "completed" &&

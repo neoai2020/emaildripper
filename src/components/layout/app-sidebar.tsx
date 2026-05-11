@@ -6,6 +6,7 @@ import {
   AlertOctagon,
   Ban,
   Bell,
+  CircleHelp,
   FileUp,
   Clock,
   HardDrive,
@@ -35,6 +36,7 @@ const mainNav = [
   { href: "/templates/csv-mappings", label: "CSV mappings", icon: Shapes },
   { href: "/analytics", label: "Analytics", icon: LineChart },
   { href: "/audit-log", label: "Audit log", icon: ScrollText },
+  { href: "/help", label: "Help", icon: CircleHelp },
 ] as const;
 
 const settingsNav = [
@@ -42,7 +44,7 @@ const settingsNav = [
   { href: "/settings/preferences", label: "Preferences", icon: SlidersHorizontal },
   { href: "/settings/alerts", label: "Alerts", icon: Bell },
   { href: "/settings/randomization", label: "Randomization", icon: Sparkles },
-  { href: "/settings/cron", label: "Cron", icon: Clock },
+  { href: "/settings/cron", label: "Timer", icon: Clock },
   { href: "/settings/backups", label: "Backups", icon: HardDrive },
   { href: "/settings/danger", label: "Danger zone", icon: AlertOctagon },
 ] as const;

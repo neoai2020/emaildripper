@@ -12,13 +12,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getServiceSupabase } from "@/lib/db";
+import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 
 import { addSuppressionAction } from "./actions";
 
 export default async function SuppressionPage() {
   const sb = getServiceSupabase();
   if (!sb) {
-    return <PageHeader title="Suppression list" description="Connect Supabase to manage suppressions." />;
+    return <PageHeader title="Suppression list" description={UNCONFIGURED_APP} />;
   }
 
   const { data: rows, error } = await sb

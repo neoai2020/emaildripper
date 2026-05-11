@@ -29,7 +29,8 @@ function demoHourly(
   gap: number,
   b2: number,
   b3: number,
-  tz: string
+  tz: string,
+  intra: "uniform" | "beta" | "triangle"
 ): { hour: string; sends: number }[] {
   const start = new Date();
   start.setMinutes(start.getMinutes() + 5);
@@ -46,6 +47,7 @@ function demoHourly(
     gapFloor: gap,
     burst2: b2,
     burst3: b3,
+    intraBucketJitter: intra,
   });
   const bucketMs = 3600_000;
   const windowEnd = start.getTime() + 48 * bucketMs;
@@ -70,8 +72,15 @@ export function RandomizationForm({ initial, defaultTz }: { initial: Rand; defau
   const [b2, setB2] = useState(Number(initial.burst_probability_2 ?? 0.2));
   const [b3, setB3] = useState(Number(initial.burst_probability_3 ?? 0.05));
   const [jitter, setJitter] = useState(String(initial.intra_bucket_jitter ?? "uniform"));
+  const intra = (jitter === "beta" || jitter === "triangle" ? jitter : "uniform") as
+    | "uniform"
+    | "beta"
+    | "triangle";
 
-  const hourly = useMemo(() => demoHourly(mpt, gap, b2, b3, defaultTz), [mpt, gap, b2, b3, defaultTz]);
+  const hourly = useMemo(
+    () => demoHourly(mpt, gap, b2, b3, defaultTz, intra),
+    [mpt, gap, b2, b3, defaultTz, intra]
+  );
 
   return (
     <div className="space-y-8">
@@ -106,7 +115,7 @@ export function RandomizationForm({ initial, defaultTz }: { initial: Rand; defau
 
         <div className="grid gap-2">
           <div className="flex justify-between text-sm">
-            <Label>Max per tick (default)</Label>
+            <Label>Max sends per worker check (default)</Label>
             <span className="font-mono text-muted-foreground">{mpt}</span>
           </div>
           <input
@@ -176,14 +185,15 @@ export function RandomizationForm({ initial, defaultTz }: { initial: Rand; defau
             className="h-9 rounded-lg border border-input bg-transparent px-2 text-sm"
           >
             <option value="uniform">uniform</option>
-            <option value="beta">beta (reserved)</option>
+            <option value="triangle">triangle (more mid-bucket spread)</option>
+            <option value="beta">beta (dense toward bucket start)</option>
           </select>
         </div>
 
-        <Button type="submit">Save to database</Button>
+        <Button type="submit">Save changes</Button>
         <p className="text-xs text-muted-foreground">
-          Gap/burst probabilities here are applied when building campaign schedules (with per-campaign max per tick
-          from the wizard).
+          These gap and burst settings apply when new campaigns get their send times (along with each campaign’s own
+          batch size from the wizard).
         </p>
       </form>
     </div>

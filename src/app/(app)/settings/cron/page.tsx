@@ -12,8 +12,8 @@ export default function SettingsCronPage() {
   return (
     <>
       <PageHeader
-        title="Cron setup"
-        description="Call the tick endpoint every minute so due leads are processed. Use a secret token only you and your scheduler know."
+        title="Scheduled sender"
+        description="Your external timer should call this address about once a minute so queued emails can go out. Keep the secret token private."
       />
 
       <div className="mt-8 space-y-6 rounded-xl border border-border/80 p-6">
@@ -23,8 +23,8 @@ export default function SettingsCronPage() {
         </div>
         {!base ? (
           <p className="text-sm text-amber-600 dark:text-amber-400">
-            Set <code className="rounded bg-muted px-1">NEXT_PUBLIC_APP_URL</code> to your public origin if reverse
-            proxy headers are not available, so this page can show the full tick URL.
+            Set your public site address in hosting settings so this page can show the full link to copy for your
+            timer.
           </p>
         ) : null}
         <div className="grid gap-2">
@@ -37,12 +37,25 @@ export default function SettingsCronPage() {
           </div>
         </div>
         <ul className="list-inside list-disc space-y-2 text-sm text-muted-foreground">
-          <li>
-            Add <code className="rounded bg-muted px-1">CRON_TOKEN</code> to your deployment environment.
-          </li>
-          <li>Use cron-job.org or your host scheduler with a 1-minute interval.</li>
-          <li>Confirm responses are 200 in your scheduler history after deploy.</li>
+          <li>Add the scheduler secret from your hosting panel to the deployment environment so calls are accepted.</li>
+          <li>Use cron-job.org or your host’s scheduled tasks with a one-minute interval.</li>
+          <li>After deploy, open your scheduler’s history and confirm each run finished successfully.</li>
         </ul>
+        <div className="grid gap-2 border-t border-border/80 pt-4 text-sm text-muted-foreground">
+          <p className="font-medium text-foreground">Optional timed jobs (same secret)</p>
+          <p className="text-xs">
+            Weekly email recap:{" "}
+            <code className="break-all rounded bg-muted px-1 font-mono text-[11px]">
+              {base ? `${base}/api/digest-email?token=${encodeURIComponent(token)}` : "/api/digest-email?token=…"}
+            </code>
+          </p>
+          <p className="text-xs">
+            Backup snapshot upload:{" "}
+            <code className="break-all rounded bg-muted px-1 font-mono text-[11px]">
+              {base ? `${base}/api/backup-snapshot?token=${encodeURIComponent(token)}` : "/api/backup-snapshot?token=…"}
+            </code>
+          </p>
+        </div>
       </div>
     </>
   );

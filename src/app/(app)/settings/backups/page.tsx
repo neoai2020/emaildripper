@@ -15,18 +15,18 @@ export default async function SettingsBackupsPage() {
     <>
       <PageHeader
         title="Backups"
-        description="Postgres is the source of truth. Supabase manages automated backups on paid tiers; otherwise export regularly."
+        description="Your live data lives in the hosted database, which includes its own automatic backups on paid plans. Use this area for extra snapshots when that flow is wired up."
       />
 
       <div className="mt-8 space-y-4 rounded-xl border border-border/80 p-6 text-sm text-muted-foreground">
         <p>
-          Retention preference in settings: <span className="font-mono text-foreground">{retention}</span> days
-          (informational — enforcement is in your backup provider).
+          Keep-at-least-days preference in settings:{" "}
+          <span className="font-mono text-foreground">{retention}</span> days (your host or database provider applies the
+          real retention rules).
         </p>
         <p>
-          Open your Supabase project → <strong>Database</strong> → backups / point-in-time recovery, or run{" "}
-          <code className="rounded bg-muted px-1">pg_dump</code> from a trusted machine and store artifacts in
-          encrypted object storage.
+          In your database host’s dashboard, open backups or point-in-time recovery, or ask your administrator to export
+          a full copy on a schedule you trust, and store that file somewhere encrypted.
         </p>
         <p>
           <Link

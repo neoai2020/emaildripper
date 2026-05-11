@@ -20,7 +20,7 @@ export default async function LeadsImportPage() {
     <>
       <PageHeader
         title="CSV import"
-        description="Parse locally, map the email column, validate against suppression and MX, then upsert into master leads."
+        description="Upload a spreadsheet, pick the email column, check addresses, then save them to your master list."
       />
       <div className="mt-8">
         <CsvImportClient mappings={mappings} />

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { getServiceSupabase } from "@/lib/db";
+import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 import { cn } from "@/lib/utils";
 
 export default async function CampaignsPage() {
@@ -20,7 +21,7 @@ export default async function CampaignsPage() {
     return (
       <PageHeader
         title="Campaigns"
-        description="Connect Supabase to list campaigns."
+        description={UNCONFIGURED_APP}
       />
     );
   }
@@ -36,7 +37,7 @@ export default async function CampaignsPage() {
   return (
     <>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <PageHeader title="Campaigns" description="Drip schedules, progress, and controls." />
+        <PageHeader title="Campaigns" description="All drip sends, progress, and pause or resume controls in one place." />
         <Link href="/campaigns/new" className={cn(buttonVariants())}>
           New campaign
         </Link>
