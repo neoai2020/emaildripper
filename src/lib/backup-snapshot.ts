@@ -9,7 +9,7 @@ export async function createBackupSnapshotCore(): Promise<{ path: string; bytes:
   const [{ data: campaigns }, { count: leadCount }, { data: lastTicks }] = await Promise.all([
     sb.from("campaigns").select("id,name,tag,status,total_leads,sent_count,failed_count,created_at").limit(500),
     sb.from("campaign_leads").select("id", { count: "exact", head: true }),
-    sb.from("tick_log").select("at,leads_processed,errors,slow").order("at", { ascending: false }).limit(20),
+    sb.from("tick_log").select("at,leads_processed,errors,duration_ms").order("at", { ascending: false }).limit(20),
   ]);
 
   const payload = {
@@ -17,7 +17,12 @@ export async function createBackupSnapshotCore(): Promise<{ path: string; bytes:
     generated_at: new Date().toISOString(),
     campaigns: campaigns ?? [],
     campaign_lead_count: leadCount ?? 0,
-    recent_ticks: lastTicks ?? [],
+    recent_ticks: (lastTicks ?? []).map((t) => ({
+      at: t.at,
+      leads_processed: t.leads_processed,
+      errors: t.errors,
+      slow: Number(t.duration_ms ?? 0) > 25_000,
+    })),
   };
 
   const json = JSON.stringify(payload);

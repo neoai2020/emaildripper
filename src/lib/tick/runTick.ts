@@ -268,71 +268,168 @@ export async function runTick(req: Request): Promise<NextResponse> {
 
     const dryRun = Boolean((camp as { dry_run?: boolean }).dry_run);
 
-    const body = signMakePayload(
-      {
-        email: lead.email,
-        first_name: master?.first_name ?? null,
-        last_name: master?.last_name ?? null,
-        custom_fields: master?.custom_fields ?? {},
-        campaign_id: camp.id,
-        campaign_tag: camp.tag,
-        lead_id: lead.id,
-        attempt,
-        timestamp: ts,
-      },
-      ar.webhook_secret
-    );
-
-    let httpStatus = 0;
-    let responseText = "";
     const t0 = Date.now();
-
-    if (dryRun) {
-      httpStatus = 204;
-      responseText = "dry_run_no_http";
-    } else {
-      const res = await postSignedMakeLead(ar.make_webhook_url as string, body, MAKE_WEBHOOK_POST_MS);
-      httpStatus = res.status;
-      responseText = res.text;
-    }
-
-    const durationMs = Date.now() - t0;
-    const ok = dryRun || (httpStatus >= 200 && httpStatus < 300);
-
-    await sb.from("campaign_lead_logs").insert({
-      campaign_lead_id: lead.id,
-      attempt_number: attempt,
-      outcome: ok ? "success" : "failure",
-      http_status: httpStatus || null,
-      response_body: responseText,
-      error_message: ok ? null : "non_2xx_or_timeout",
-      duration_ms: durationMs,
-    });
-
-    if (ok) {
-      processed++;
-      if (!dryRun) {
-        arSuccessThisTick.set(
-          ar.id as string,
-          (arSuccessThisTick.get(ar.id as string) ?? 0) + 1
-        );
+    try {
+      const webhookUrl = typeof ar.make_webhook_url === "string" ? ar.make_webhook_url.trim() : "";
+      const webhookSecret = typeof ar.webhook_secret === "string" ? ar.webhook_secret : "";
+      if (!dryRun && (!webhookUrl || webhookSecret.length === 0)) {
+        const durationMs = Date.now() - t0;
+        await sb.from("campaign_lead_logs").insert({
+          campaign_lead_id: lead.id,
+          attempt_number: attempt,
+          outcome: "failure",
+          http_status: null,
+          response_body: "missing_webhook_url_or_secret",
+          error_message: "non_2xx_or_timeout",
+          duration_ms: durationMs,
+        });
+        errors++;
+        if (attempt >= 3) {
+          await sb
+            .from("campaign_leads")
+            .update({
+              status: "failed",
+              processing_lock: null,
+              processing_lock_expires_at: null,
+              attempt_count: attempt,
+              make_response_status: null,
+              make_response_body: "missing_webhook_url_or_secret",
+              error_message: "max_retries",
+            })
+            .eq("id", lead.id);
+          await bumpFailed(sb, camp.id);
+        } else {
+          const backoffMs = attempt === 1 ? 60_000 : attempt === 2 ? 300_000 : 1_800_000;
+          const nextAt = new Date(Date.now() + backoffMs).toISOString();
+          await sb
+            .from("campaign_leads")
+            .update({
+              status: "pending",
+              processing_lock: null,
+              processing_lock_expires_at: null,
+              attempt_count: attempt,
+              scheduled_at: nextAt,
+              next_retry_at: nextAt,
+              make_response_status: null,
+              make_response_body: "missing_webhook_url_or_secret",
+              error_message: "retry_scheduled",
+            })
+            .eq("id", lead.id);
+        }
+        continue;
       }
-      await sb
-        .from("campaign_leads")
-        .update({
-          status: "sent",
-          sent_at: new Date().toISOString(),
-          processing_lock: null,
-          processing_lock_expires_at: null,
-          make_response_status: httpStatus,
-          make_response_body: responseText,
-          error_message: null,
-          attempt_count: attempt,
-        })
-        .eq("id", lead.id);
-      await bumpSent(sb, camp.id);
-    } else {
+
+      const body = signMakePayload(
+        {
+          email: lead.email,
+          first_name: master?.first_name ?? null,
+          last_name: master?.last_name ?? null,
+          custom_fields: master?.custom_fields ?? {},
+          campaign_id: camp.id,
+          campaign_tag: camp.tag,
+          lead_id: lead.id,
+          attempt,
+          timestamp: ts,
+        },
+        webhookSecret
+      );
+
+      let httpStatus = 0;
+      let responseText = "";
+
+      if (dryRun) {
+        httpStatus = 204;
+        responseText = "dry_run_no_http";
+      } else {
+        const res = await postSignedMakeLead(webhookUrl, body, MAKE_WEBHOOK_POST_MS);
+        httpStatus = res.status;
+        responseText = res.text;
+      }
+
+      const durationMs = Date.now() - t0;
+      const ok = dryRun || (httpStatus >= 200 && httpStatus < 300);
+
+      await sb.from("campaign_lead_logs").insert({
+        campaign_lead_id: lead.id,
+        attempt_number: attempt,
+        outcome: ok ? "success" : "failure",
+        http_status: httpStatus || null,
+        response_body: responseText,
+        error_message: ok ? null : "non_2xx_or_timeout",
+        duration_ms: durationMs,
+      });
+
+      if (ok) {
+        processed++;
+        if (!dryRun) {
+          arSuccessThisTick.set(
+            ar.id as string,
+            (arSuccessThisTick.get(ar.id as string) ?? 0) + 1
+          );
+        }
+        await sb
+          .from("campaign_leads")
+          .update({
+            status: "sent",
+            sent_at: new Date().toISOString(),
+            processing_lock: null,
+            processing_lock_expires_at: null,
+            make_response_status: httpStatus,
+            make_response_body: responseText,
+            error_message: null,
+            attempt_count: attempt,
+          })
+          .eq("id", lead.id);
+        await bumpSent(sb, camp.id);
+      } else {
+        errors++;
+        if (attempt >= 3) {
+          await sb
+            .from("campaign_leads")
+            .update({
+              status: "failed",
+              processing_lock: null,
+              processing_lock_expires_at: null,
+              attempt_count: attempt,
+              make_response_status: httpStatus || null,
+              make_response_body: responseText,
+              error_message: "max_retries",
+            })
+            .eq("id", lead.id);
+          await bumpFailed(sb, camp.id);
+        } else {
+          const backoffMs = attempt === 1 ? 60_000 : attempt === 2 ? 300_000 : 1_800_000;
+          const nextAt = new Date(Date.now() + backoffMs).toISOString();
+          await sb
+            .from("campaign_leads")
+            .update({
+              status: "pending",
+              processing_lock: null,
+              processing_lock_expires_at: null,
+              attempt_count: attempt,
+              scheduled_at: nextAt,
+              next_retry_at: nextAt,
+              make_response_status: httpStatus || null,
+              make_response_body: responseText,
+              error_message: "retry_scheduled",
+            })
+            .eq("id", lead.id);
+        }
+      }
+    } catch (e) {
+      console.error("[tick] lead processing error", lead.id, e);
       errors++;
+      const durationMs = Date.now() - t0;
+      const msg = e instanceof Error ? e.message : "tick_exception";
+      await sb.from("campaign_lead_logs").insert({
+        campaign_lead_id: lead.id,
+        attempt_number: attempt,
+        outcome: "failure",
+        http_status: null,
+        response_body: msg.slice(0, 500),
+        error_message: "worker_exception",
+        duration_ms: durationMs,
+      });
       if (attempt >= 3) {
         await sb
           .from("campaign_leads")
@@ -341,8 +438,8 @@ export async function runTick(req: Request): Promise<NextResponse> {
             processing_lock: null,
             processing_lock_expires_at: null,
             attempt_count: attempt,
-            make_response_status: httpStatus || null,
-            make_response_body: responseText,
+            make_response_status: null,
+            make_response_body: msg.slice(0, 500),
             error_message: "max_retries",
           })
           .eq("id", lead.id);
@@ -359,8 +456,8 @@ export async function runTick(req: Request): Promise<NextResponse> {
             attempt_count: attempt,
             scheduled_at: nextAt,
             next_retry_at: nextAt,
-            make_response_status: httpStatus || null,
-            make_response_body: responseText,
+            make_response_status: null,
+            make_response_body: msg.slice(0, 500),
             error_message: "retry_scheduled",
           })
           .eq("id", lead.id);
