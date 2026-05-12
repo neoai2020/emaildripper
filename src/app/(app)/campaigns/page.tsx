@@ -33,11 +33,14 @@ async function CampaignsTable({
   const sb = getServiceSupabase();
   if (!sb) return null;
 
-  let query = sb
-    .from("campaigns")
-    .select("id,name,tag,status,total_leads,sent_count,failed_count,starts_at,ends_at,created_at,purge_at")
-    .order("created_at", { ascending: false })
-    .limit(100);
+  const baseSelect =
+    "id,name,tag,status,total_leads,sent_count,failed_count,starts_at,ends_at,created_at" as const;
+  const withPurgeSelect =
+    "id,name,tag,status,total_leads,sent_count,failed_count,starts_at,ends_at,created_at,purge_at" as const;
+
+  let query = recoverable
+    ? sb.from("campaigns").select(withPurgeSelect).order("created_at", { ascending: false }).limit(100)
+    : sb.from("campaigns").select(baseSelect).order("created_at", { ascending: false }).limit(100);
 
   const safe = sanitizeSearch(q);
   if (safe) {
@@ -50,8 +53,27 @@ async function CampaignsTable({
     query = query.eq("status", "cancelled").gt("purge_at", nowIso);
   }
 
-  const { data: rows, error } = await query;
-  if (error) throw new Error(error.message);
+  let { data: rows, error } = await query;
+  if (error && recoverable && /purge_at|42703|column/i.test(error.message)) {
+    return (
+      <EmptyState
+        title="Recoverable campaigns need a DB update"
+        description="The hosted database is missing the purge_at column. Run the Supabase migrations from this repo (worker_operational_baseline / prd_finishing_worker_purge), then use this filter again."
+        actionHref="/help"
+        actionLabel="Open help"
+      />
+    );
+  }
+  if (error) {
+    return (
+      <EmptyState
+        title="Could not load campaigns"
+        description={error.message}
+        actionHref="/campaigns"
+        actionLabel="Retry"
+      />
+    );
+  }
 
   if ((rows ?? []).length === 0) {
     return (

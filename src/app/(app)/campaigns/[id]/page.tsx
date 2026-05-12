@@ -42,7 +42,14 @@ export default async function CampaignDetailPage({
   }
 
   const { data: c, error } = await sb.from("campaigns").select("*").eq("id", params.id).maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) {
+    return (
+      <PageHeader
+        title="Campaign"
+        description={`Could not load this campaign (${error.message}). Apply Supabase migrations if this appeared right after a deploy, then refresh.`}
+      />
+    );
+  }
   if (!c) notFound();
 
   const qRaw = (searchParams.q ?? "").trim();

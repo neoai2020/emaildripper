@@ -162,15 +162,25 @@ export async function activatePreviewCampaignAction(campaignId: string, formData
     throw new Error("Campaign is not in preview state.");
   }
 
-  const { error } = await sb
-    .from("campaigns")
-    .update({
-      status: "running",
-      launched_at: new Date().toISOString(),
-      dry_run: dryRun,
-    })
-    .eq("id", campaignId)
-    .eq("status", "previewing");
+  const launchedAt = new Date().toISOString();
+  const withDryRun = {
+    status: "running" as const,
+    launched_at: launchedAt,
+    dry_run: dryRun,
+  };
+  const withoutDryRun = { status: "running" as const, launched_at: launchedAt };
+
+  let { error } = await sb.from("campaigns").update(withDryRun).eq("id", campaignId).eq("status", "previewing");
+  if (
+    error &&
+    (error.message.toLowerCase().includes("dry_run") || error.code === "42703")
+  ) {
+    ({ error } = await sb
+      .from("campaigns")
+      .update(withoutDryRun)
+      .eq("id", campaignId)
+      .eq("status", "previewing"));
+  }
   if (error) throw new Error(error.message);
 
   await writeAuditLog({

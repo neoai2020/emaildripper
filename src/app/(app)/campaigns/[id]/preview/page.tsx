@@ -18,7 +18,14 @@ export default async function CampaignPreviewPage({ params }: { params: { id: st
   }
 
   const { data: c, error } = await sb.from("campaigns").select("*").eq("id", params.id).maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) {
+    return (
+      <PageHeader
+        title="Pre-flight preview"
+        description={`Could not load this campaign from the database (${error.message}). If you recently deployed, apply pending Supabase migrations on the hosted project, then retry.`}
+      />
+    );
+  }
   if (!c) notFound();
 
   const { data: leadTimes, error: ltErr } = await sb
@@ -26,7 +33,14 @@ export default async function CampaignPreviewPage({ params }: { params: { id: st
     .select("scheduled_at")
     .eq("campaign_id", params.id)
     .order("scheduled_at", { ascending: true });
-  if (ltErr) throw new Error(ltErr.message);
+  if (ltErr) {
+    return (
+      <PageHeader
+        title="Pre-flight preview"
+        description={`Could not load scheduled sends (${ltErr.message}). Check the database connection and migrations, then refresh.`}
+      />
+    );
+  }
 
   const times = (leadTimes ?? []).map((r) => r.scheduled_at as string);
   const startsAt = c.starts_at ? new Date(c.starts_at as string) : new Date();
