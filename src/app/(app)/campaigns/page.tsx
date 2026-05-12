@@ -53,7 +53,7 @@ async function CampaignsTable({
     query = query.eq("status", "cancelled").gt("purge_at", nowIso);
   }
 
-  let { data: rows, error } = await query;
+  const { data: rows, error } = await query;
   if (error && recoverable && /purge_at|42703|column/i.test(error.message)) {
     return (
       <EmptyState
