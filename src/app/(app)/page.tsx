@@ -21,7 +21,7 @@ export default async function DashboardPage() {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <PageHeader
           title="Dashboard"
-          description="Operational snapshot. Refreshes every 30 seconds while this page stays open."
+          description="Live operational snapshot. Refreshes every 30 seconds while this page stays open."
         />
       </div>
       <DashboardClient initial={initial} />

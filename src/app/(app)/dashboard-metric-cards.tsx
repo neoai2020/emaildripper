@@ -1,105 +1,101 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import type { ReactNode } from "react";
+
 import { HelpTip } from "@/components/help-tip";
+import type { TooltipId } from "@/lib/tooltips";
+import { cn } from "@/lib/utils";
+
+function KpiCard({
+  title,
+  tipId,
+  description,
+  value,
+  valueClassName,
+}: {
+  title: string;
+  tipId: TooltipId;
+  description: string;
+  value: string;
+  valueClassName?: string;
+}) {
+  return (
+    <section
+      className={cn("rounded-lg border border-border/80 bg-card p-4 shadow-sm")}
+      aria-labelledby={`kpi-${String(tipId)}-title`}
+    >
+      <dl className="space-y-1">
+        <div className="flex items-center gap-2">
+          <dt id={`kpi-${String(tipId)}-title`} className="text-xs font-medium text-muted-foreground">
+            {title}
+          </dt>
+          <HelpTip id={tipId} />
+        </div>
+        <dd
+          className={cn(
+            "text-[28px] font-semibold leading-none tracking-tight text-foreground tabular-nums",
+            valueClassName
+          )}
+        >
+          {value}
+        </dd>
+        <dd className="text-[11px] leading-snug text-muted-foreground">{description}</dd>
+      </dl>
+    </section>
+  );
+}
 
 export function DashboardMetricCards({
   activeCampaigns,
+  leadsInFlight,
   sentToday,
   failedLast24h,
-  lastTickAt,
-  makeOpsEstimate,
-  makeOpsLimit,
+  maxTickGapSec,
+  makeOpsBar,
 }: {
   activeCampaigns: string;
+  leadsInFlight: string;
   sentToday: string;
   failedLast24h: string;
-  lastTickAt: string;
-  makeOpsEstimate: string;
-  makeOpsLimit: string | null;
+  maxTickGapSec: number | null;
+  makeOpsBar: ReactNode;
 }) {
-  const limitNum = makeOpsLimit != null ? Number(makeOpsLimit) : NaN;
-  const estNum = Number(makeOpsEstimate);
-  const warn =
-    Number.isFinite(limitNum) && limitNum > 0 && Number.isFinite(estNum) && estNum >= limitNum * 0.8;
-
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      <Card size="sm">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <CardTitle>Active campaigns</CardTitle>
-            <HelpTip id="dashboard.active" />
-          </div>
-          <CardDescription>running + scheduled + paused</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="font-mono text-sm font-medium leading-snug text-foreground">{activeCampaigns}</p>
-        </CardContent>
-      </Card>
-      <Card size="sm">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <CardTitle>Sent today (UTC)</CardTitle>
-            <HelpTip id="dashboard.sentToday" />
-          </div>
-          <CardDescription>Successful sends since midnight UTC</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="font-mono text-sm font-medium leading-snug text-foreground">{sentToday}</p>
-        </CardContent>
-      </Card>
-      <Card size="sm">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <CardTitle>Failed (24h)</CardTitle>
-            <HelpTip id="dashboard.failed24" />
-          </div>
-          <CardDescription>terminal failures logged recently</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="font-mono text-sm font-medium leading-snug text-foreground">{failedLast24h}</p>
-        </CardContent>
-      </Card>
-      <Card size="sm">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <CardTitle>Last tick</CardTitle>
-            <HelpTip id="dashboard.lastTick" />
-          </div>
-          <CardDescription>Last time the sending worker ran</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm font-medium leading-snug text-foreground tabular-nums">{lastTickAt}</p>
-        </CardContent>
-      </Card>
-
-      <Card size="sm" className="md:col-span-2 xl:col-span-4">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <CardTitle>Make ops estimate (30d)</CardTitle>
-            <HelpTip id="dashboard.makeOps" />
-          </div>
-          <CardDescription>Rough estimate: about two Make.com steps per successful send, last 30 days</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <p className="font-mono text-sm font-medium text-foreground">
-            ~{makeOpsEstimate} est. ops · limit: {makeOpsLimit ?? "—"}
-          </p>
-          {warn ? (
-            <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-              You are within about 20% of the configured monthly Make.com usage limit. Leave headroom for retries
-              inside Make.
-            </p>
-          ) : null}
-        </CardContent>
-      </Card>
+    <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+        <KpiCard
+          tipId="dashboard.active"
+          title="Active campaigns"
+          description="Campaigns currently in flight"
+          value={activeCampaigns}
+        />
+        <KpiCard
+          tipId="dashboard.leadsInFlight"
+          title="Leads in flight"
+          description="Pending or processing sends"
+          value={leadsInFlight}
+        />
+        <KpiCard
+          tipId="dashboard.sentToday"
+          title="Sent today"
+          description="Leads delivered to Make.com today (UTC)"
+          value={sentToday}
+        />
+        <KpiCard
+          tipId="dashboard.failed24"
+          title="Failed (24h)"
+          description="Leads that failed after all retries"
+          value={failedLast24h}
+        />
+        <KpiCard
+          tipId="dashboard.tickGap"
+          title="Worker tick gap"
+          description="Max seconds between ticks in the last hour"
+          value={maxTickGapSec != null ? String(maxTickGapSec) : "—"}
+          valueClassName="font-mono text-[22px]"
+        />
+      </div>
+      {makeOpsBar}
     </div>
   );
 }

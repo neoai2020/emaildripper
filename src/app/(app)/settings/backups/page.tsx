@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { createBackupSnapshotFormAction } from "@/app/(app)/settings/backups/actions";
+import { BackupFileActions } from "@/app/(app)/settings/backups/backup-file-actions";
 import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { getServiceSupabase } from "@/lib/db";
@@ -43,7 +44,7 @@ export default async function SettingsBackupsPage() {
     <>
       <PageHeader
         title="Backups"
-        description="Database PITR remains primary; gzip snapshots in app-backups are an optional export. Restore/delete from storage UI is not wired here yet — download the signed URL when exposed."
+        description="JSON snapshots for archive and selective review. Daily database backups and PITR are handled by Supabase Pro — these files are an extra export you control."
       />
 
       <div className="mt-8 space-y-6">
@@ -79,22 +80,21 @@ export default async function SettingsBackupsPage() {
 
             <div className="rounded-xl border border-border/80 p-6">
               <h2 className="font-heading text-sm font-semibold text-foreground">Recent files</h2>
-              <ul className="mt-3 space-y-2 font-mono text-[11px] text-muted-foreground">
+              <ul className="mt-3 space-y-3 text-[11px] text-muted-foreground">
                 {files.length === 0 ? (
                   <li>No snapshots found yet.</li>
                 ) : (
                   files.slice(0, 25).map((f) => (
-                    <li key={f.path} className="flex flex-wrap justify-between gap-2">
-                      <span className="text-foreground">{f.path}</span>
-                      <span>{f.created_at ?? "—"}</span>
+                    <li key={f.path} className="flex flex-col gap-2 rounded-lg border border-border/60 p-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <div className="font-mono text-xs text-foreground">{f.path}</div>
+                        <div className="tabular-nums text-[11px]">{f.created_at ?? "—"}</div>
+                      </div>
+                      <BackupFileActions path={f.path} />
                     </li>
                   ))
                 )}
               </ul>
-              <p className="mt-4 text-xs text-muted-foreground">
-                Signed download URLs are not shown in-app yet — use the Supabase dashboard or Storage API with a
-                short-lived signed URL when you need to pull a file down.
-              </p>
             </div>
 
             <p>

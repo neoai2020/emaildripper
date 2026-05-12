@@ -16,12 +16,22 @@ All notable changes to this project are documented here.
 - Reusable empty states and list skeleton; debounced campaigns search plus filters on master leads, suppression, campaign detail leads.
 - Next.js middleware rate limits (`/api/*` except stricter `/api/tick`).
 - Suppression CSV bulk upload with added / duplicate / invalid counts.
-- Settings backups: create gzip snapshot via server action; list recent `app-backups` objects; cron GET lists snapshots with token.
+- Settings backups: signed download (short-lived URL), typed verify (gzip digest check, no table restore), typed delete; UI actions per file.
+- Sidebar worker health dot (polls `/api/health` every 30s) and skip-to-content link.
+- `StatusBadge` for campaign and lead statuses; typed **CANCEL** confirmation for campaign cancel (sheet UI).
+- Campaign detail **Delivery log** (recent `campaign_lead_logs` with timestamps, HTTP, outcome).
+- Preferences: Make.com monthly tier preset + custom limit for dashboard ops estimate.
+- Route-level loading skeletons for dashboard and campaigns lists.
+- `/api/health` returns JSON with `level` and seconds-since-tick fields for UI (HTTP 200); middleware rate limiting unchanged.
 
 ### Changed
 
 - `POST /api/backup-snapshot` now stores gzip JSON (`v: 2`) and logs gzip metadata.
+- Dashboard: KPI grid (`<dl>`-style cards), leads-in-flight metric, UTC-month Make ops estimate, 1-hour minute tick timeline, failures from `campaign_lead_logs`, active campaign table with tag chip and `StatusBadge`.
+- Tooltips and copy pass for operator-facing language (dashboard + CSV field map).
+- Global `text-sm` body, tabular numbers on table cells, `prefers-reduced-motion` guard.
+- Legacy alert columns removed from `settings` (Telegram / alert email) — migration `20260512160000_drop_legacy_alert_columns.sql`.
 
 ### Notes
 
-- Restore/delete backup objects from the Storage UI or API are documented as follow-up; signed download URLs are not rendered in-app yet.
+- v2 backup snapshots remain digest/summary files; full database restore is via Supabase Pro backups. In-app “Verify” only checks the archive can be parsed.

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 
-import { writeAuditLog } from "@/lib/audit";
 import { createBackupSnapshotCore } from "@/lib/backup-snapshot";
 import { requireServiceSupabase } from "@/lib/db";
 import { safeCompareToken } from "@/lib/make-webhook";

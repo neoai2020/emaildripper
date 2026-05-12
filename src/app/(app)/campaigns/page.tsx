@@ -14,9 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/status-badge";
 import { getServiceSupabase } from "@/lib/db";
-import { humanizeStatus } from "@/lib/format-display";
 import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 import { cn } from "@/lib/utils";
 
@@ -92,7 +91,7 @@ async function CampaignsTable({
                 <TableCell className="font-medium">{r.name}</TableCell>
                 <TableCell className="font-mono text-xs text-muted-foreground">{r.tag}</TableCell>
                 <TableCell>
-                  <Badge variant="outline">{humanizeStatus(r.status as string)}</Badge>
+                  <StatusBadge status={r.status as string} />
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {sent}/{total} sent · {failed} failed · {donePct}%

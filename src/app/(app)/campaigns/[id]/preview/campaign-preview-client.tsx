@@ -132,7 +132,9 @@ export function CampaignPreviewClient({
   function cancelFromModal() {
     startTransition(async () => {
       try {
-        await cancelCampaignAction(campaignId);
+        const fd = new FormData();
+        fd.set("confirm", "CANCEL");
+        await cancelCampaignAction(campaignId, fd);
         toast.success("Campaign cancelled");
         testModalRef.current?.close();
         router.push("/campaigns");

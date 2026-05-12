@@ -26,23 +26,31 @@ export const TOOLTIPS = {
   },
   "dashboard.active": {
     title: "Active campaigns",
-    body: "Counts campaigns that are running, scheduled, or paused — anything that could still produce sends.",
+    body: "Campaigns currently in flight: running, scheduled, or paused — anything that could still produce sends.",
   },
   "dashboard.sentToday": {
     title: "Sent today",
-    body: "UTC-midnight to now: successful webhook deliveries recorded on lead rows.",
+    body: "Leads delivered to Make.com today (UTC midnight to now).",
   },
   "dashboard.failed24": {
     title: "Failed (24h)",
-    body: "Leads that entered failed status in the last 24 hours (after retries exhausted).",
+    body: "Leads that failed after all retries in the last 24 hours.",
+  },
+  "dashboard.leadsInFlight": {
+    title: "Leads in flight",
+    body: "Rows still waiting to send or currently being handed off to Make.com.",
+  },
+  "dashboard.tickGap": {
+    title: "Tick gap",
+    body: "Longest gap between worker runs in the last hour. Large gaps mean your scheduler or /api/tick is not firing every minute.",
   },
   "dashboard.lastTick": {
     title: "Last tick",
-    body: "When the background sender last ran. If this time is old, your external timer or site address may be misconfigured.",
+    body: "When the worker last ran. If this time is old, your external timer or site address may be misconfigured.",
   },
   "dashboard.makeOps": {
     title: "Make operations",
-    body: "Rough monthly Make usage estimate (2 ops per successful send heuristic). Compare to your Make plan and settings limit.",
+    body: "Rough estimate for this calendar month: about two Make.com operations per successful send. Compare to your plan and the limit in Preferences.",
   },
   "wizard.name": {
     title: "Campaign name",
@@ -94,7 +102,7 @@ export const TOOLTIPS = {
   },
   "csv.fieldMap": {
     title: "CSV field map",
-    body: "Paste a JSON object: keys are spreadsheet column headings (exact text), values are field names in this app (email, first_name, last_name, or any custom key).",
+    body: "Save how spreadsheet column headings map to email and name fields so the next import from the same file layout skips the mapping step.",
   },
   "scope.v11": {
     title: "Planned improvements",

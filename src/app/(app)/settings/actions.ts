@@ -10,9 +10,28 @@ export async function updatePreferencesAction(formData: FormData) {
   const tooltips = formData.get("tooltips_enabled") === "on";
   const defaultTz = String(formData.get("default_tz") ?? "").trim() || "Europe/Vienna";
 
+  const tier = String(formData.get("make_ops_tier") ?? "custom").trim();
+  const customRaw = Number(formData.get("make_ops_custom"));
+  const presets: Record<string, number> = {
+    free: 1000,
+    core: 10_000,
+    pro: 10_000,
+    teams: 10_000,
+  };
+  let make_ops_monthly_limit: number | null = null;
+  if (tier in presets) {
+    make_ops_monthly_limit = presets[tier]!;
+  } else if (Number.isFinite(customRaw) && customRaw > 0) {
+    make_ops_monthly_limit = Math.min(10_000_000, Math.round(customRaw));
+  }
+
   const { error } = await sb
     .from("settings")
-    .update({ tooltips_enabled: tooltips, default_tz: defaultTz })
+    .update({
+      tooltips_enabled: tooltips,
+      default_tz: defaultTz,
+      make_ops_monthly_limit,
+    })
     .eq("id", 1);
   if (error) throw new Error(error.message);
 
@@ -20,7 +39,7 @@ export async function updatePreferencesAction(formData: FormData) {
     action: "settings_preferences_updated",
     entityType: "settings",
     entityId: null,
-    details: { tooltips_enabled: tooltips, default_tz: defaultTz },
+    details: { tooltips_enabled: tooltips, default_tz: defaultTz, make_ops_monthly_limit },
   });
 
   revalidatePath("/settings/preferences");

@@ -288,7 +288,10 @@ export async function resumeCampaignAction(campaignId: string) {
   revalidatePath("/campaigns");
 }
 
-export async function cancelCampaignAction(campaignId: string) {
+export async function cancelCampaignAction(campaignId: string, formData: FormData) {
+  if (String(formData.get("confirm")) !== "CANCEL") {
+    throw new Error('Type exactly "CANCEL" in the confirmation field to stop this campaign.');
+  }
   const sb = requireServiceSupabase();
   const purgeAt = new Date(Date.now() + 30 * 24 * 3600_000).toISOString();
   const { error: u1 } = await sb

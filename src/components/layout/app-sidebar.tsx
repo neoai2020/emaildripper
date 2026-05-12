@@ -24,6 +24,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
+import { WorkerHealthDot } from "@/components/layout/worker-health-dot";
 
 const mainNav = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -61,13 +62,16 @@ export function AppSidebar() {
   return (
     <aside className="sticky top-0 flex h-screen w-56 shrink-0 flex-col border-r border-border/80 bg-sidebar text-sidebar-foreground">
       <div className="flex flex-col gap-1 px-4 pb-4 pt-8">
-        <div className="mb-4 px-2">
-          <div className="font-heading text-sm font-semibold tracking-tight text-foreground">
-            Drip Importer
+        <div className="mb-4 flex items-start justify-between gap-2 px-2">
+          <div>
+            <div className="font-heading text-sm font-semibold tracking-tight text-foreground">
+              Drip Importer
+            </div>
+            <p className="mt-1 font-mono text-[10px] leading-tight text-muted-foreground">
+              Human-paced imports
+            </p>
           </div>
-          <p className="mt-1 font-mono text-[10px] leading-tight text-muted-foreground">
-            Human-paced imports
-          </p>
+          <WorkerHealthDot />
         </div>
         <nav className="flex flex-col gap-0.5" aria-label="Main">
           {mainNav.map(({ href, label, icon: Icon }) => {
