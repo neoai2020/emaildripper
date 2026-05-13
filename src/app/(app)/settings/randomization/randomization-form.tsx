@@ -12,6 +12,7 @@ import {
 } from "recharts";
 
 import { updateRandomizationAction } from "@/app/(app)/settings/actions";
+import { HelpTip } from "@/components/help-tip";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { buildFeelsHumanSchedule } from "@/lib/scheduler/feelsHuman";
@@ -115,11 +116,15 @@ export function RandomizationForm({ initial, defaultTz }: { initial: Rand; defau
         <input type="hidden" name="intra_bucket_jitter" value={jitter} />
 
         <div className="grid gap-2">
-          <div className="flex justify-between text-sm">
-            <Label>Max sends per worker check (default)</Label>
-            <span className="font-mono text-muted-foreground">{mpt}</span>
+          <div className="flex items-center justify-between gap-2 text-sm">
+            <div className="flex min-w-0 items-center gap-2">
+              <Label htmlFor="rand-mpt">Max sends per worker check (default)</Label>
+              <HelpTip id="settings.random.mptDefault" />
+            </div>
+            <span className="shrink-0 font-mono text-muted-foreground">{mpt}</span>
           </div>
           <input
+            id="rand-mpt"
             type="range"
             min={1}
             max={10}
@@ -130,11 +135,15 @@ export function RandomizationForm({ initial, defaultTz }: { initial: Rand; defau
         </div>
 
         <div className="grid gap-2">
-          <div className="flex justify-between text-sm">
-            <Label>Gap probability floor</Label>
-            <span className="font-mono text-muted-foreground">{gap.toFixed(2)}</span>
+          <div className="flex items-center justify-between gap-2 text-sm">
+            <div className="flex min-w-0 items-center gap-2">
+              <Label htmlFor="rand-gap">Gap probability floor</Label>
+              <HelpTip id="settings.random.gapFloor" />
+            </div>
+            <span className="shrink-0 font-mono text-muted-foreground">{gap.toFixed(2)}</span>
           </div>
           <input
+            id="rand-gap"
             type="range"
             min={0.05}
             max={0.45}
@@ -146,11 +155,15 @@ export function RandomizationForm({ initial, defaultTz }: { initial: Rand; defau
         </div>
 
         <div className="grid gap-2">
-          <div className="flex justify-between text-sm">
-            <Label>Burst ×2 probability</Label>
-            <span className="font-mono text-muted-foreground">{b2.toFixed(2)}</span>
+          <div className="flex items-center justify-between gap-2 text-sm">
+            <div className="flex min-w-0 items-center gap-2">
+              <Label htmlFor="rand-b2">Burst ×2 probability</Label>
+              <HelpTip id="settings.random.burst2" />
+            </div>
+            <span className="shrink-0 font-mono text-muted-foreground">{b2.toFixed(2)}</span>
           </div>
           <input
+            id="rand-b2"
             type="range"
             min={0.05}
             max={0.5}
@@ -162,11 +175,15 @@ export function RandomizationForm({ initial, defaultTz }: { initial: Rand; defau
         </div>
 
         <div className="grid gap-2">
-          <div className="flex justify-between text-sm">
-            <Label>Burst ×3 probability</Label>
-            <span className="font-mono text-muted-foreground">{b3.toFixed(2)}</span>
+          <div className="flex items-center justify-between gap-2 text-sm">
+            <div className="flex min-w-0 items-center gap-2">
+              <Label htmlFor="rand-b3">Burst ×3 probability</Label>
+              <HelpTip id="settings.random.burst3" />
+            </div>
+            <span className="shrink-0 font-mono text-muted-foreground">{b3.toFixed(2)}</span>
           </div>
           <input
+            id="rand-b3"
             type="range"
             min={0.01}
             max={0.25}
@@ -178,7 +195,10 @@ export function RandomizationForm({ initial, defaultTz }: { initial: Rand; defau
         </div>
 
         <div className="grid gap-2">
-          <Label htmlFor="jitter">Intra-bucket jitter</Label>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="jitter">Intra-bucket jitter</Label>
+            <HelpTip id="settings.random.intraJitter" />
+          </div>
           <select
             id="jitter"
             value={jitter}

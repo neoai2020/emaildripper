@@ -96,6 +96,26 @@ export const TOOLTIPS = {
     title: "Randomization",
     body: "Global defaults for gap/burst probabilities and intra-bucket jitter used when building new schedules.",
   },
+  "settings.random.mptDefault": {
+    title: "Max sends per worker check (default)",
+    body: "Upper bound on how many sends can land in the same clock hour inside your time window. The campaign wizard sets a per-campaign cap too; the scheduler uses the lower of the two when building timestamps.",
+  },
+  "settings.random.gapFloor": {
+    title: "Gap probability floor",
+    body: "Raises the minimum chance of a “quiet” hour (zero sends in that hour bucket). Higher values add more breathing room between bursts so the drip looks less robotic.",
+  },
+  "settings.random.burst2": {
+    title: "Burst ×2 probability",
+    body: "How often the scheduler may pack two sends into the same hour bucket when the draw picks a burst. Increase slightly for lumpier, more human pacing; decrease for smoother hourly counts.",
+  },
+  "settings.random.burst3": {
+    title: "Burst ×3 probability",
+    body: "Chance of a triple-send hour when workload and averages allow it. Keep this small — noticeable spikes should be rare compared with ×2 bursts.",
+  },
+  "settings.random.intraJitter": {
+    title: "Intra-bucket jitter",
+    body: "How send times are scattered across the seconds inside each minute: uniform spreads evenly, triangle favors mid-minute, beta clusters nearer the start of the minute bucket.",
+  },
   "audit.row": {
     title: "Audit entry",
     body: "Immutable record of a mutating action — export CSV for compliance reviews.",
