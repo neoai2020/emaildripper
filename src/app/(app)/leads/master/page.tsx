@@ -1,3 +1,4 @@
+import { MasterLeadDeleteButton } from "@/app/(app)/leads/master/master-lead-delete-button";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,7 @@ export default async function MasterLeadsPage({ searchParams }: { searchParams: 
 
   let query = sb
     .from("master_leads")
-    .select("email,first_name,last_name,source_label,first_seen_at")
+    .select("id,email,first_name,last_name,source_label,first_seen_at")
     .order("first_seen_at", { ascending: false })
     .limit(200);
   if (q) query = query.ilike("email", `%${q}%`);
@@ -68,11 +69,12 @@ export default async function MasterLeadsPage({ searchParams }: { searchParams: 
                 <TableHead>Name</TableHead>
                 <TableHead>Source</TableHead>
                 <TableHead>First seen (UTC)</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows!.map((r) => (
-                <TableRow key={r.email}>
+                <TableRow key={r.id as string}>
                   <TableCell className="font-mono text-xs">{r.email}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {[r.first_name, r.last_name].filter(Boolean).join(" ") || "—"}
@@ -80,6 +82,9 @@ export default async function MasterLeadsPage({ searchParams }: { searchParams: 
                   <TableCell className="text-sm text-muted-foreground">{r.source_label ?? "—"}</TableCell>
                   <TableCell className="text-[11px] text-muted-foreground tabular-nums">
                     {formatUtcDateTime(r.first_seen_at as string | null)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <MasterLeadDeleteButton id={r.id as string} email={r.email as string} />
                   </TableCell>
                 </TableRow>
               ))}
