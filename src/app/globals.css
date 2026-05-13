@@ -95,6 +95,8 @@
   }
   html {
     @apply font-sans;
+    /* Match forced `.dark` shell so native <select> popups use dark styling (avoids white menu + white text on Windows). */
+    color-scheme: dark;
   }
   table td,
   table th {
