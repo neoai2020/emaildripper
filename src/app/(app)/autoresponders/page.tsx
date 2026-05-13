@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
+import { AutoresponderDeleteButton } from "@/app/(app)/autoresponders/autoresponder-delete-button";
 import { getServiceSupabase } from "@/lib/db";
 import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 import { cn } from "@/lib/utils";
@@ -85,12 +86,15 @@ export default async function AutorespondersPage() {
                     ) : null}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Link
-                      href={`/autoresponders/${r.id}`}
-                      className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-                    >
-                      Edit
-                    </Link>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <Link
+                        href={`/autoresponders/${r.id}`}
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                      >
+                        Edit
+                      </Link>
+                      <AutoresponderDeleteButton id={r.id} name={r.name} />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

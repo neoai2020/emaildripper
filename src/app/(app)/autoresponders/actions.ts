@@ -2,10 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 
 import { writeAuditLog } from "@/lib/audit";
 import { requireServiceSupabase } from "@/lib/db";
 import { autoresponderBaseSchema } from "@/lib/schemas/autoresponder";
+
+const idSchema = z.string().uuid();
 
 function parseAutoresponderForm(formData: FormData) {
   return autoresponderBaseSchema.parse({
@@ -92,4 +95,42 @@ export async function updateAutoresponderAction(id: string, formData: FormData) 
   revalidatePath("/autoresponders");
   revalidatePath(`/autoresponders/${id}`);
   redirect(`/autoresponders/${id}?saved=1`);
+}
+
+export async function deleteAutoresponderAction(id: string) {
+  const sb = requireServiceSupabase();
+  const parsed = idSchema.safeParse(id);
+  if (!parsed.success) throw new Error("Invalid autoresponder id.");
+
+  const { count, error: countErr } = await sb
+    .from("campaigns")
+    .select("id", { count: "exact", head: true })
+    .eq("autoresponder_id", parsed.data);
+  if (countErr) throw new Error(countErr.message);
+  if ((count ?? 0) > 0) {
+    throw new Error(
+      "This autoresponder is still linked to one or more campaigns. Remove those campaigns or point them at another autoresponder, then try again.",
+    );
+  }
+
+  const { data: row, error: fetchErr } = await sb
+    .from("autoresponders")
+    .select("name")
+    .eq("id", parsed.data)
+    .maybeSingle();
+  if (fetchErr) throw new Error(fetchErr.message);
+  if (!row) throw new Error("Autoresponder not found.");
+
+  const { error } = await sb.from("autoresponders").delete().eq("id", parsed.data);
+  if (error) throw new Error(error.message);
+
+  await writeAuditLog({
+    action: "autoresponder_deleted",
+    entityType: "autoresponder",
+    entityId: parsed.data,
+    details: { name: row.name },
+  });
+
+  revalidatePath("/autoresponders");
+  revalidatePath(`/autoresponders/${parsed.data}`);
 }
