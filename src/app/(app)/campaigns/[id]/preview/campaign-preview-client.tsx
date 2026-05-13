@@ -284,7 +284,7 @@ export function CampaignPreviewClient({
 
       <dialog
         ref={dialogRef}
-        className="fixed left-1/2 top-1/2 w-[min(100%,440px)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-background p-6 text-sm shadow-xl"
+        className="fixed left-1/2 top-1/2 w-[min(100%,440px)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-background p-6 text-sm text-foreground shadow-xl"
       >
         <h3 className="font-heading text-base font-semibold text-foreground">Confirm launch</h3>
         <p className="mt-2 text-muted-foreground">
@@ -318,7 +318,7 @@ export function CampaignPreviewClient({
         onClose={() => {
           /* keep previewing — no status change */
         }}
-        className="fixed left-1/2 top-1/2 max-h-[min(90vh,560px)] w-[min(100%,480px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-border bg-background p-6 text-sm shadow-xl"
+        className="fixed left-1/2 top-1/2 max-h-[min(90vh,560px)] w-[min(100%,480px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-border bg-background p-6 text-sm text-foreground shadow-xl"
       >
         <h3 className="font-heading text-base font-semibold text-foreground">Test send results</h3>
         <p className="mt-2 text-xs text-muted-foreground">
