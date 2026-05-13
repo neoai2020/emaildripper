@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 import { writeAuditLog } from "@/lib/audit";
 import { requireServiceSupabase } from "@/lib/db";
@@ -652,4 +653,47 @@ export async function uploadCampaignCsvAction(formData: FormData): Promise<{ pat
   });
 
   return { path };
+}
+
+const CAMPAIGN_DELETABLE_STATUSES = new Set([
+  "draft",
+  "previewing",
+  "completed",
+  "failed",
+  "cancelled",
+]);
+
+export async function deleteCampaignAction(id: string) {
+  const sb = requireServiceSupabase();
+  const parsed = z.string().uuid().safeParse(id);
+  if (!parsed.success) throw new Error("Invalid campaign id.");
+
+  const { data: row, error: gErr } = await sb
+    .from("campaigns")
+    .select("id,status,name")
+    .eq("id", parsed.data)
+    .maybeSingle();
+  if (gErr) throw new Error(gErr.message);
+  if (!row) throw new Error("Campaign not found.");
+
+  const st = String(row.status);
+  if (!CAMPAIGN_DELETABLE_STATUSES.has(st)) {
+    throw new Error(
+      "This campaign is still scheduled, running, or paused. Cancel it (or wait until it finishes), then you can delete it.",
+    );
+  }
+
+  const { error } = await sb.from("campaigns").delete().eq("id", parsed.data);
+  if (error) throw new Error(error.message);
+
+  await writeAuditLog({
+    action: "campaign_deleted",
+    entityType: "campaign",
+    entityId: parsed.data,
+    details: { name: row.name, status: st },
+  });
+
+  revalidatePath("/campaigns");
+  revalidatePath("/");
+  revalidatePath(`/campaigns/${parsed.data}`);
 }

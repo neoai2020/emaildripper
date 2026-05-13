@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import { toast } from "sonner";
@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { defaultCampaignTag } from "@/lib/tag";
+import type { CampaignCloneDraft } from "@/lib/campaign/cloneDraft";
 import { normalizeEmail, isValidEmailSyntax } from "@/lib/validation/email";
 
 type Ar = { id: string; name: string };
@@ -44,10 +45,12 @@ export function CampaignWizard({
   autoresponders,
   templates,
   defaultTz,
+  cloneFrom = null,
 }: {
   autoresponders: Ar[];
   templates: CampaignTemplateRow[];
   defaultTz: string;
+  cloneFrom?: { draft: CampaignCloneDraft; sourceName: string } | null;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -81,6 +84,30 @@ export function CampaignWizard({
   const [dryRunResult, setDryRunResult] = useState<Awaited<ReturnType<typeof dryRunScheduleWizardAction>> | null>(
     null
   );
+
+  const cloneAppliedRef = useRef(false);
+  useEffect(() => {
+    if (!cloneFrom || cloneAppliedRef.current) return;
+    cloneAppliedRef.current = true;
+    const d = cloneFrom.draft;
+    setName(d.name);
+    setSourceLabel(d.sourceLabel ?? "");
+    setAutoresponderId(d.autoresponderId);
+    setEmailsText(d.emailsText);
+    setTimeWindowHours(d.timeWindowHours);
+    setQuietEnabled(d.quietHoursEnabled);
+    setQuietStart(d.quietHoursStart);
+    setQuietEnd(d.quietHoursEnd);
+    setQuietTz(d.quietHoursTz.trim() || defaultTz);
+    setMaxConcurrentPerTick(d.maxConcurrentPerTick);
+    setSourceCsvPath(null);
+    setTag("");
+    setTemplateId("");
+    setDryRunResult(null);
+    setValidation(null);
+    setStep(1);
+    toast.info(`Copied from "${cloneFrom.sourceName}". Review each step before creating a preview.`);
+  }, [cloneFrom, defaultTz]);
 
   const selectedAr = useMemo(
     () => autoresponders.find((a) => a.id === autoresponderId),

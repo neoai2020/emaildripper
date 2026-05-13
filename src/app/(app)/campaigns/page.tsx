@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { CampaignDeleteButton } from "@/app/(app)/campaigns/campaign-delete-button";
 import { CampaignsToolbar } from "@/app/(app)/campaigns/campaigns-toolbar";
 import { EmptyState } from "@/components/empty-state";
 import { ListSkeleton } from "@/components/list-skeleton";
@@ -75,6 +76,8 @@ async function CampaignsTable({
     );
   }
 
+  const deletableStatuses = new Set(["draft", "previewing", "completed", "failed", "cancelled"]);
+
   if ((rows ?? []).length === 0) {
     return (
       <EmptyState
@@ -119,7 +122,7 @@ async function CampaignsTable({
                   {sent}/{total} sent · {failed} failed · {donePct}%
                 </TableCell>
                 <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
+                  <div className="flex flex-wrap justify-end gap-2">
                     {r.status === "previewing" ? (
                       <Link
                         href={`/campaigns/${r.id}/preview`}
@@ -131,6 +134,17 @@ async function CampaignsTable({
                     <Link href={`/campaigns/${r.id}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
                       View
                     </Link>
+                    <Link
+                      href={`/campaigns/new?clone=${encodeURIComponent(r.id)}`}
+                      className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                    >
+                      Clone
+                    </Link>
+                    <CampaignDeleteButton
+                      id={r.id}
+                      name={r.name}
+                      deletable={deletableStatuses.has(String(r.status))}
+                    />
                   </div>
                 </TableCell>
               </TableRow>
