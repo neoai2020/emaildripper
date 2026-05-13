@@ -43,37 +43,39 @@ function TickGapChart({ rows }: { rows: DashboardSnapshot["tickGaps"] }) {
     );
   }
   return (
-    <div className="h-48 w-full min-w-0">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
-          <XAxis dataKey="n" tick={{ fontSize: 9 }} label={{ value: "Tick #", position: "insideBottom", offset: -4, fontSize: 10 }} />
-          <YAxis tick={{ fontSize: 10 }} width={36} label={{ value: "min", angle: -90, position: "insideLeft", fontSize: 10 }} />
-          <Tooltip
-            contentStyle={{
-              background: "hsl(var(--popover))",
-              color: "hsl(var(--popover-foreground))",
-              border: "1px solid hsl(var(--border))",
-              borderRadius: 8,
-              fontSize: 12,
-            }}
-            formatter={(value, _n, props) => {
-              const sec = props?.payload?.gapSec;
-              return [`${Number(value)} min (${sec}s)`, "Gap"];
-            }}
-          />
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            <span className="mr-2 inline-block size-2 rounded-sm bg-[hsl(142_55%_42%)] align-middle" /> OK
-            <span className="mx-2 inline-block size-2 rounded-sm bg-[hsl(0_72%_50%)] align-middle" /> Long gap (&gt;3
-            min)
-          </p>
-          <Bar dataKey="gapMin" name="Gap (min)" radius={[2, 2, 0, 0]}>
-            {data.map((e) => (
-              <Cell key={e.n} fill={e.fill} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+    <div className="w-full min-w-0 space-y-1">
+      <div className="h-48 w-full min-w-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
+            <XAxis dataKey="n" tick={{ fontSize: 9 }} label={{ value: "Tick #", position: "insideBottom", offset: -4, fontSize: 10 }} />
+            <YAxis tick={{ fontSize: 10 }} width={36} label={{ value: "min", angle: -90, position: "insideLeft", fontSize: 10 }} />
+            <Tooltip
+              contentStyle={{
+                background: "hsl(var(--popover))",
+                color: "hsl(var(--popover-foreground))",
+                border: "1px solid hsl(var(--border))",
+                borderRadius: 8,
+                fontSize: 12,
+              }}
+              formatter={(value, _n, props) => {
+                const sec = props?.payload?.gapSec;
+                return [`${Number(value)} min (${sec}s)`, "Gap"];
+              }}
+            />
+            <Bar dataKey="gapMin" name="Gap (min)" radius={[2, 2, 0, 0]}>
+              {data.map((e) => (
+                <Cell key={e.n} fill={e.fill} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        <span className="mr-2 inline-block size-2 rounded-sm bg-[hsl(142_55%_42%)] align-middle" /> OK
+        <span className="mx-2 inline-block size-2 rounded-sm bg-[hsl(0_72%_50%)] align-middle" /> Long gap (&gt;3
+        min)
+      </p>
     </div>
   );
 }
@@ -101,37 +103,39 @@ function TickTimeline1h({ rows }: { rows: DashboardSnapshot["tickBuckets1h"] }) 
     );
   }
   return (
-    <div className="h-44 w-full min-w-0">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
-          <XAxis dataKey="t" tick={{ fontSize: 8 }} interval={9} />
-          <YAxis domain={[0, 1]} ticks={[0, 1]} width={28} tick={{ fontSize: 10 }} />
-          <Tooltip
-            contentStyle={{
-              background: "hsl(var(--popover))",
-              border: "1px solid hsl(var(--border))",
-              borderRadius: 8,
-              fontSize: 12,
-            }}
-            formatter={(_v, _n, item) => {
-              const iso = item?.payload?.iso as string | undefined;
-              const had = item?.payload?.v;
-              return [had ? "Tick ran" : "No tick", iso ? formatUtcDateTime(iso, { seconds: true }) : ""];
-            }}
-          />
-          <p className="mb-1 text-[11px] text-muted-foreground">
-            <span className="mr-1 inline-block size-2 rounded-sm bg-[hsl(142_55%_42%)] align-middle" /> Tick
-            <span className="mx-2 inline-block size-2 rounded-sm bg-[hsl(0_72%_50%)] align-middle" /> Gap
-          </p>
-          <Bar dataKey="v" radius={[1, 1, 0, 0]}>
-            {data.map((e, i) => (
-              <Cell key={i} fill={e.fill} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-      <p className="mt-2 text-[11px] text-muted-foreground">
+    <div className="w-full min-w-0 space-y-1">
+      <p className="text-[11px] text-muted-foreground">
+        <span className="mr-1 inline-block size-2 rounded-sm bg-[hsl(142_55%_42%)] align-middle" /> Tick
+        <span className="mx-2 inline-block size-2 rounded-sm bg-[hsl(0_72%_50%)] align-middle" /> Gap
+      </p>
+      <div className="h-44 w-full min-w-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
+            <XAxis dataKey="t" tick={{ fontSize: 8 }} interval={9} />
+            <YAxis domain={[0, 1]} ticks={[0, 1]} width={28} tick={{ fontSize: 10 }} />
+            <Tooltip
+              contentStyle={{
+                background: "hsl(var(--popover))",
+                border: "1px solid hsl(var(--border))",
+                borderRadius: 8,
+                fontSize: 12,
+              }}
+              formatter={(_v, _n, item) => {
+                const iso = item?.payload?.iso as string | undefined;
+                const had = item?.payload?.v;
+                return [had ? "Tick ran" : "No tick", iso ? formatUtcDateTime(iso, { seconds: true }) : ""];
+              }}
+            />
+            <Bar dataKey="v" radius={[1, 1, 0, 0]}>
+              {data.map((e, i) => (
+                <Cell key={i} fill={e.fill} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <p className="text-[11px] text-muted-foreground">
         If you see gaps, cron-job.org is unreachable or your <span className="font-mono">/api/tick</span> route is
         failing.
       </p>

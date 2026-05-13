@@ -16,7 +16,7 @@ export function HelpTip({
 }) {
   const { tooltipsEnabled } = useAppSettings();
   const entry = TOOLTIPS[id];
-  if (!tooltipsEnabled) return null;
+  if (!tooltipsEnabled || !entry) return null;
 
   return (
     <Tooltip>
