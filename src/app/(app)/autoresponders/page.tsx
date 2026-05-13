@@ -16,7 +16,12 @@ import { getServiceSupabase } from "@/lib/db";
 import { UNCONFIGURED_APP } from "@/lib/user-facing-copy";
 import { cn } from "@/lib/utils";
 
-export default async function AutorespondersPage() {
+export default async function AutorespondersPage({
+  searchParams,
+}: {
+  searchParams?: { created?: string };
+}) {
+  const showCreated = searchParams?.created === "1";
   const sb = getServiceSupabase();
 
   if (!sb) {
@@ -50,6 +55,16 @@ export default async function AutorespondersPage() {
           Add autoresponder
         </Link>
       </div>
+
+      {showCreated ? (
+        <div
+          role="status"
+          className="mb-4 rounded-lg border border-primary/35 bg-primary/10 px-4 py-3 text-sm text-foreground"
+        >
+          Autoresponder saved. It is listed below (newest first) — use <strong>Edit</strong> on a row to change webhook
+          details, caps, or warmup.
+        </div>
+      ) : null}
 
       <div className="rounded-xl border border-border/80">
         <Table>

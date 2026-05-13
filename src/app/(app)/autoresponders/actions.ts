@@ -60,7 +60,7 @@ export async function createAutoresponderAction(formData: FormData) {
   });
 
   revalidatePath("/autoresponders");
-  redirect(`/autoresponders/${inserted.id}?created=1`);
+  redirect(`/autoresponders?created=1`);
 }
 
 export async function updateAutoresponderAction(id: string, formData: FormData) {
