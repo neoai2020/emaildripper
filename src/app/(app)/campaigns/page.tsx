@@ -102,7 +102,7 @@ async function CampaignsTable({
             <TableHead>Tag</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Progress</TableHead>
-            <TableHead className="text-right">Open</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -156,12 +156,15 @@ async function CampaignsTable({
   );
 }
 
-async function CampaignsBody({ q, recoverable }: { q: string; recoverable: boolean }) {
+function CampaignsToolbarFallback() {
   return (
-    <>
-      <CampaignsToolbar />
-      <CampaignsTable q={q} recoverable={recoverable} />
-    </>
+    <div
+      className="mb-4 flex flex-wrap items-center gap-3"
+      aria-hidden
+    >
+      <div className="h-9 w-full max-w-xs animate-pulse rounded-md border border-border/60 bg-muted/40" />
+      <div className="h-7 w-44 animate-pulse rounded-md border border-border/60 bg-muted/40" />
+    </div>
   );
 }
 
@@ -187,8 +190,12 @@ export default function CampaignsPage({
         </Link>
       </div>
 
+      <Suspense fallback={<CampaignsToolbarFallback />}>
+        <CampaignsToolbar />
+      </Suspense>
+
       <Suspense fallback={<ListSkeleton />}>
-        <CampaignsBody q={q} recoverable={recoverable} />
+        <CampaignsTable q={q} recoverable={recoverable} />
       </Suspense>
     </>
   );

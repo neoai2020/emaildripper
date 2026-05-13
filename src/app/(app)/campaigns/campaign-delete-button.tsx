@@ -5,7 +5,8 @@ import { useTransition } from "react";
 import { toast } from "sonner";
 
 import { deleteCampaignAction } from "@/app/(app)/campaigns/actions";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export function CampaignDeleteButton({
   id,
@@ -20,17 +21,19 @@ export function CampaignDeleteButton({
   const [pending, start] = useTransition();
 
   return (
-    <Button
+    <button
       type="button"
-      variant="outline"
-      size="sm"
-      className="text-destructive hover:bg-destructive/10"
       disabled={!deletable || pending}
       title={
         deletable
           ? undefined
           : "Cancel or finish this campaign before it can be deleted."
       }
+      className={cn(
+        buttonVariants({ variant: "outline", size: "sm" }),
+        "text-destructive hover:bg-destructive/10",
+        (!deletable || pending) && "pointer-events-none opacity-50",
+      )}
       onClick={() => {
         if (!deletable) return;
         const ok = window.confirm(
@@ -49,6 +52,6 @@ export function CampaignDeleteButton({
       }}
     >
       Delete
-    </Button>
+    </button>
   );
 }
