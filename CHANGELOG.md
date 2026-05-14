@@ -26,11 +26,13 @@ All notable changes to this project are documented here.
 
 ### Changed
 
+- Make.com outbound lead webhooks: HMAC-SHA256 signs a fixed pipe-separated string (`lead_id|campaign_id|email|timestamp`, UTF-8, lowercase hex) for easier verification in Make.
 - `POST /api/backup-snapshot` now stores gzip JSON (`v: 2`) and logs gzip metadata.
 - Dashboard: KPI grid (`<dl>`-style cards), leads-in-flight metric, UTC-month Make ops estimate, 1-hour minute tick timeline, failures from `campaign_lead_logs`, active campaign table with tag chip and `StatusBadge`.
 - Tooltips and copy pass for operator-facing language (dashboard + CSV field map).
 - Global `text-sm` body, tabular numbers on table cells, `prefers-reduced-motion` guard.
 - Legacy alert columns removed from `settings` (Telegram / alert email) — migration `20260512160000_drop_legacy_alert_columns.sql`.
+- Supabase migration `20260509220000_campaign_digest_backup.sql`: campaign `dry_run` / `test_mode`, settings `digest_config`, and private `app-backups` storage bucket (idempotent `IF NOT EXISTS` / `ON CONFLICT`).
 
 ### Notes
 
