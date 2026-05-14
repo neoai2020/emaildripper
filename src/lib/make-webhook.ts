@@ -12,26 +12,17 @@ export type MakeLeadPayload = {
   timestamp: string;
 };
 
-function stableStringify(value: unknown): string {
-  if (value === null || typeof value !== "object") {
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) {
-    return `[${value.map(stableStringify).join(",")}]`;
-  }
-  const obj = value as Record<string, unknown>;
-  const keys = Object.keys(obj).sort();
-  return `{${keys
-    .map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`)
-    .join(",")}}`;
+/** Canonical string for Make.com: four values, ASCII pipe, fixed order. */
+function makeWebhookCanonicalString(body: MakeLeadPayload): string {
+  return `${body.lead_id}|${body.campaign_id}|${body.email}|${body.timestamp}`;
 }
 
 export function signMakePayload(
   body: MakeLeadPayload,
   secret: string
 ): MakeLeadPayload & { signature: string } {
-  const canonical = stableStringify(body);
-  const signature = createHmac("sha256", secret).update(canonical).digest("hex");
+  const canonical = makeWebhookCanonicalString(body);
+  const signature = createHmac("sha256", secret).update(canonical, "utf8").digest("hex");
   return { ...body, signature };
 }
 
