@@ -2,8 +2,6 @@
 
 import { createContext, useContext } from "react";
 
-import { TooltipProvider } from "@/components/ui/tooltip";
-
 const Ctx = createContext<{ tooltipsEnabled: boolean }>({ tooltipsEnabled: true });
 
 export function useAppSettings() {
@@ -17,9 +15,5 @@ export function AppSettingsProvider({
   tooltipsEnabled: boolean;
   children: React.ReactNode;
 }) {
-  return (
-    <Ctx.Provider value={{ tooltipsEnabled }}>
-      <TooltipProvider delay={400}>{children}</TooltipProvider>
-    </Ctx.Provider>
-  );
+  return <Ctx.Provider value={{ tooltipsEnabled }}>{children}</Ctx.Provider>;
 }

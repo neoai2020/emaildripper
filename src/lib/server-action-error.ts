@@ -1,14 +1,16 @@
-import { ZodError } from "zod";
-
 const RSC_DIGEST_RE = /Server Components render/i;
+
+function zodFirstMessage(e: unknown): string | null {
+  if (!e || typeof e !== "object" || !("issues" in e)) return null;
+  const issues = (e as { issues?: { message?: string }[] }).issues;
+  if (!Array.isArray(issues) || issues.length === 0) return null;
+  return issues[0]?.message ?? null;
+}
 
 /** Turn thrown values into messages safe to show in Sonner toasts (production-friendly). */
 export function formatServerActionError(e: unknown): string {
-  if (e instanceof ZodError) {
-    const first = e.issues[0];
-    if (first) return first.message;
-    return "Some fields are invalid — check the wizard and try again.";
-  }
+  const zodMsg = zodFirstMessage(e);
+  if (zodMsg) return zodMsg;
   if (e instanceof Error) {
     if (RSC_DIGEST_RE.test(e.message)) {
       return (

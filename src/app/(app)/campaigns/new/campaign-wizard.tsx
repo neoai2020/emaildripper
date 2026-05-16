@@ -42,6 +42,15 @@ function hm(t: string | null | undefined, fallback: string) {
   return s.length >= 5 ? s.slice(0, 5) : fallback;
 }
 
+function defaultStartsAtLocal(): string {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() + 5);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(
+    d.getMinutes()
+  )}`;
+}
+
 export function CampaignWizard({
   autoresponders,
   templates,
@@ -62,14 +71,8 @@ export function CampaignWizard({
   const [autoresponderId, setAutoresponderId] = useState(autoresponders[0]?.id ?? "");
   const [emailsText, setEmailsText] = useState("");
   const [timeWindowHours, setTimeWindowHours] = useState(48);
-  const [startsAtLocal, setStartsAtLocal] = useState(() => {
-    const d = new Date();
-    d.setMinutes(d.getMinutes() + 5);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(
-      d.getMinutes()
-    )}`;
-  });
+  // Set after mount — avoids SSR (UTC on DO) vs browser local time hydration crash.
+  const [startsAtLocal, setStartsAtLocal] = useState("");
   const [quietEnabled, setQuietEnabled] = useState(true);
   const [quietStart, setQuietStart] = useState("01:00");
   const [quietEnd, setQuietEnd] = useState("06:00");
@@ -87,6 +90,11 @@ export function CampaignWizard({
   );
 
   const cloneAppliedRef = useRef(false);
+
+  useEffect(() => {
+    setStartsAtLocal((cur) => (cur ? cur : defaultStartsAtLocal()));
+  }, []);
+
   useEffect(() => {
     if (!cloneFrom || cloneAppliedRef.current) return;
     cloneAppliedRef.current = true;
@@ -267,6 +275,10 @@ export function CampaignWizard({
     }
     if (step === 4 && (!Number.isFinite(timeWindowHours) || timeWindowHours <= 0)) {
       toast.error("Time window must be a positive number of hours.");
+      return;
+    }
+    if (step === 4 && !startsAtLocal.trim()) {
+      toast.error("Pick a start date and time.");
       return;
     }
     if (step === 5 && !tag.trim()) {
@@ -602,6 +614,7 @@ export function CampaignWizard({
                 type="datetime-local"
                 value={startsAtLocal}
                 onChange={(e) => setStartsAtLocal(e.target.value)}
+                disabled={!startsAtLocal}
               />
             </LabeledField>
             <div className="grid gap-2 md:col-span-2">
