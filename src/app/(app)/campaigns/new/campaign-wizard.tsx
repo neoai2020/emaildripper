@@ -19,6 +19,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { formatServerActionError } from "@/lib/server-action-error";
 import { defaultCampaignTag } from "@/lib/tag";
 import type { CampaignCloneDraft } from "@/lib/campaign/cloneDraft";
 import { normalizeEmail, isValidEmailSyntax } from "@/lib/validation/email";
@@ -309,7 +310,7 @@ export function CampaignWizard({
         setDryRunResult(r);
         toast.success("Dry schedule ready — nothing was saved.");
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Dry schedule failed");
+        toast.error(formatServerActionError(e));
       }
     });
   }
@@ -356,9 +357,8 @@ export function CampaignWizard({
         });
         toast.success("Preview ready — review schedule, then launch.");
         router.push(`/campaigns/${campaignId}/preview`);
-        router.refresh();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Preview failed");
+        toast.error(formatServerActionError(e));
       }
     });
   }

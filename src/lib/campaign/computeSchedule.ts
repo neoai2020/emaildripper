@@ -4,7 +4,21 @@ import type { LaunchCampaignInput } from "@/lib/schemas/campaign";
 import { parseRandomizationSettings } from "@/lib/randomization-settings";
 import { buildFeelsHumanSchedule } from "@/lib/scheduler/feelsHuman";
 import { validateEmailMx } from "@/lib/mx/lookup";
+import { assertValidIanaTimeZone } from "@/lib/timezone";
 import { isValidEmailSyntax, normalizeEmail } from "@/lib/validation/email";
+
+const SUPPRESSION_IN_CHUNK = 400;
+
+async function loadSuppressedSet(sb: SupabaseClient, emails: string[]): Promise<Set<string>> {
+  const suppressedSet = new Set<string>();
+  for (let i = 0; i < emails.length; i += SUPPRESSION_IN_CHUNK) {
+    const slice = emails.slice(i, i + SUPPRESSION_IN_CHUNK);
+    const { data, error } = await sb.from("suppression_list").select("email").in("email", slice);
+    if (error) throw new Error(error.message);
+    for (const row of data ?? []) suppressedSet.add(row.email as string);
+  }
+  return suppressedSet;
+}
 
 export type ScheduleComputeInput = Pick<
   LaunchCampaignInput,
@@ -48,18 +62,20 @@ export async function computeCampaignSchedule(
   );
   if (normalized.length === 0) throw new Error("No valid emails after normalization.");
 
-  const { data: suppressed, error: supErr } = await sb
-    .from("suppression_list")
-    .select("email")
-    .in("email", normalized);
-  if (supErr) throw new Error(supErr.message);
-  const suppressedSet = new Set((suppressed ?? []).map((r) => r.email));
+  const suppressedSet = await loadSuppressedSet(sb, normalized);
   const eligible = normalized.filter((e) => !suppressedSet.has(e));
   if (eligible.length === 0) throw new Error("All emails are suppressed.");
+
+  const limitRaw = input.scheduleLeadLimit;
+  const mxTarget =
+    limitRaw != null && Number.isFinite(Number(limitRaw)) && Number(limitRaw) > 0
+      ? Math.min(Number(limitRaw), eligible.length)
+      : eligible.length;
 
   const mxFails: string[] = [];
   const withMx: string[] = [];
   for (const e of eligible) {
+    if (withMx.length >= mxTarget) break;
     // eslint-disable-next-line no-await-in-loop
     const ok = await validateEmailMx(e);
     if (ok) withMx.push(e);
@@ -69,15 +85,11 @@ export async function computeCampaignSchedule(
     throw new Error(`No emails passed MX validation. Sample failures: ${mxFails.slice(0, 5).join(", ")}`);
   }
 
-  const limitRaw = input.scheduleLeadLimit;
-  const limit =
-    limitRaw != null && Number.isFinite(Number(limitRaw)) && Number(limitRaw) > 0
-      ? Math.min(Number(limitRaw), withMx.length)
-      : withMx.length;
-  const useEmails = withMx.slice(0, limit);
+  const useEmails = withMx;
 
   const startsAt = new Date(input.startsAtIso);
   if (Number.isNaN(startsAt.getTime())) throw new Error("Invalid startsAt");
+  assertValidIanaTimeZone(input.quietTz);
 
   let endsAt = new Date(startsAt.getTime() + input.timeWindowHours * 3600_000);
   const originalEndsAt = new Date(endsAt.getTime());
@@ -95,20 +107,24 @@ export async function computeCampaignSchedule(
   let schedule: Date[] = [];
   let capSatisfied = !capActive;
   for (let iter = 0; iter < 400; iter++) {
-    schedule = buildFeelsHumanSchedule({
-      count: useEmails.length,
-      windowStart: startsAt,
-      windowEnd: endsAt,
-      timeZone: input.quietTz,
-      quietHoursEnabled: input.quietHoursEnabled,
-      quietStart: input.quietStart,
-      quietEnd: input.quietEnd,
-      maxPerBucket: input.maxConcurrentPerTick,
-      gapFloor: rand.gapFloor,
-      burst2: rand.burst2,
-      burst3: rand.burst3,
-      intraBucketJitter: rand.intraBucketJitter,
-    });
+    try {
+      schedule = buildFeelsHumanSchedule({
+        count: useEmails.length,
+        windowStart: startsAt,
+        windowEnd: endsAt,
+        timeZone: input.quietTz,
+        quietHoursEnabled: input.quietHoursEnabled,
+        quietStart: input.quietStart,
+        quietEnd: input.quietEnd,
+        maxPerBucket: input.maxConcurrentPerTick,
+        gapFloor: rand.gapFloor,
+        burst2: rand.burst2,
+        burst3: rand.burst3,
+        intraBucketJitter: rand.intraBucketJitter,
+      });
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : "Could not build send schedule.");
+    }
 
     if (schedule.length !== useEmails.length) {
       throw new Error(`Scheduler mismatch (${schedule.length} vs ${useEmails.length}).`);

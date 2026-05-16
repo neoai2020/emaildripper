@@ -6,6 +6,7 @@ import { z } from "zod";
 import { writeAuditLog } from "@/lib/audit";
 import { requireServiceSupabase } from "@/lib/db";
 import { launchCampaignSchema, type LaunchCampaignInput } from "@/lib/schemas/campaign";
+import { formatServerActionError } from "@/lib/server-action-error";
 import { computeCampaignSchedule } from "@/lib/campaign/computeSchedule";
 import { postSignedMakeLead, signMakePayload } from "@/lib/make-webhook";
 import { validateEmailMx } from "@/lib/mx/lookup";
@@ -112,38 +113,45 @@ async function insertCampaignWithLeads(
 export async function createPreviewCampaignAction(
   raw: LaunchCampaignInput
 ): Promise<{ campaignId: string }> {
-  const input = launchCampaignSchema.parse(raw);
-  const { campaignId, leadCount } = await insertCampaignWithLeads(input, "previewing");
+  try {
+    const input = launchCampaignSchema.parse(raw);
+    const { campaignId, leadCount } = await insertCampaignWithLeads(input, "previewing");
 
-  await writeAuditLog({
-    action: "campaign_preview_created",
-    entityType: "campaign",
-    entityId: campaignId,
-    details: { tag: input.tag, leads: leadCount, schedule_lead_limit: input.scheduleLeadLimit ?? null },
-  });
+    await writeAuditLog({
+      action: "campaign_preview_created",
+      entityType: "campaign",
+      entityId: campaignId,
+      details: { tag: input.tag, leads: leadCount, schedule_lead_limit: input.scheduleLeadLimit ?? null },
+    });
 
-  revalidatePath("/campaigns");
-  revalidatePath("/");
-  revalidatePath(`/campaigns/${campaignId}`);
-  return { campaignId };
+    revalidatePath("/campaigns");
+    revalidatePath(`/campaigns/${campaignId}`);
+    revalidatePath(`/campaigns/${campaignId}/preview`);
+    return { campaignId };
+  } catch (e) {
+    throw new Error(formatServerActionError(e));
+  }
 }
 
 /** Direct launch (running) — kept for scripts or future “skip preview” flows. */
 export async function launchCampaignAction(raw: LaunchCampaignInput): Promise<{ campaignId: string }> {
-  const input = launchCampaignSchema.parse(raw);
-  const { campaignId, leadCount } = await insertCampaignWithLeads(input, "running");
+  try {
+    const input = launchCampaignSchema.parse(raw);
+    const { campaignId, leadCount } = await insertCampaignWithLeads(input, "running");
 
-  await writeAuditLog({
-    action: "campaign_launched",
-    entityType: "campaign",
-    entityId: campaignId,
-    details: { tag: input.tag, leads: leadCount },
-  });
+    await writeAuditLog({
+      action: "campaign_launched",
+      entityType: "campaign",
+      entityId: campaignId,
+      details: { tag: input.tag, leads: leadCount },
+    });
 
-  revalidatePath("/campaigns");
-  revalidatePath("/");
-  revalidatePath(`/campaigns/${campaignId}`);
-  return { campaignId };
+    revalidatePath("/campaigns");
+    revalidatePath(`/campaigns/${campaignId}`);
+    return { campaignId };
+  } catch (e) {
+    throw new Error(formatServerActionError(e));
+  }
 }
 
 export async function activatePreviewCampaignAction(campaignId: string, formData?: FormData) {
@@ -504,37 +512,41 @@ export async function sendPreviewTestLeadsAction(campaignId: string): Promise<Pr
 }
 
 export async function dryRunScheduleWizardAction(raw: LaunchCampaignInput) {
-  const input = launchCampaignSchema.parse(raw);
-  const sb = requireServiceSupabase();
-  const { withMx, schedule, endsAt, originalEndsAt, mxFails, suppressed } = await computeCampaignSchedule(sb, {
-    autoresponderId: input.autoresponderId,
-    emails: input.emails,
-    timeWindowHours: input.timeWindowHours,
-    startsAtIso: input.startsAtIso,
-    quietHoursEnabled: input.quietHoursEnabled,
-    quietStart: input.quietStart,
-    quietEnd: input.quietEnd,
-    quietTz: input.quietTz,
-    maxConcurrentPerTick: input.maxConcurrentPerTick,
-    scheduleLeadLimit: input.scheduleLeadLimit ?? null,
-  });
+  try {
+    const input = launchCampaignSchema.parse(raw);
+    const sb = requireServiceSupabase();
+    const { withMx, schedule, endsAt, originalEndsAt, mxFails, suppressed } = await computeCampaignSchedule(sb, {
+      autoresponderId: input.autoresponderId,
+      emails: input.emails,
+      timeWindowHours: input.timeWindowHours,
+      startsAtIso: input.startsAtIso,
+      quietHoursEnabled: input.quietHoursEnabled,
+      quietStart: input.quietStart,
+      quietEnd: input.quietEnd,
+      quietTz: input.quietTz,
+      maxConcurrentPerTick: input.maxConcurrentPerTick,
+      scheduleLeadLimit: input.scheduleLeadLimit ?? null,
+    });
 
-  const rows = withMx.map((email, idx) => ({
-    email,
-    scheduled_at: schedule[idx]!.toISOString(),
-  }));
+    const rows = withMx.map((email, idx) => ({
+      email,
+      scheduled_at: schedule[idx]!.toISOString(),
+    }));
 
-  return {
-    rows,
-    startsAt: input.startsAtIso,
-    endsAt: endsAt.toISOString(),
-    originalEndsAt: originalEndsAt.toISOString(),
-    total: withMx.length,
-    mxFailCount: mxFails.length,
-    mxFailSample: mxFails.slice(0, 8),
-    suppressedCount: suppressed.length,
-    suppressedSample: suppressed.slice(0, 8),
-  };
+    return {
+      rows,
+      startsAt: input.startsAtIso,
+      endsAt: endsAt.toISOString(),
+      originalEndsAt: originalEndsAt.toISOString(),
+      total: withMx.length,
+      mxFailCount: mxFails.length,
+      mxFailSample: mxFails.slice(0, 8),
+      suppressedCount: suppressed.length,
+      suppressedSample: suppressed.slice(0, 8),
+    };
+  } catch (e) {
+    throw new Error(formatServerActionError(e));
+  }
 }
 
 export type WizardLeadValidation = {
