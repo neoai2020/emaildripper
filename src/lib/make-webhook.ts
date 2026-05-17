@@ -47,6 +47,8 @@ export function makeWebhookCanonicalString(body: MakeLeadPayload): string {
 export type SignedMakeLeadPayload = MakeLeadPayload & {
   /** Exact UTF-8 string that was HMAC-signed — hash this in Make instead of re-concatenating fields. */
   canonical: string;
+  /** Same as `canonical`; use in Make: sha256(1.signed_payload; "hex"; secret). */
+  signed_payload: string;
   signature: string;
 };
 
@@ -57,7 +59,7 @@ export function signMakePayload(body: MakeLeadPayload, secret: string): SignedMa
   };
   const canonical = makeWebhookCanonicalString(payload);
   const signature = createHmac("sha256", secret).update(canonical, "utf8").digest("hex");
-  return { ...payload, canonical, signature };
+  return { ...payload, canonical, signed_payload: canonical, signature };
 }
 
 /** Recompute HMAC from payload fields (excludes `signature` / `canonical`) and compare in constant time. */
