@@ -16,25 +16,28 @@ export type MakeLeadPayload = {
 export const MAKE_WEBHOOK_HMAC_SEP = "|";
 
 /** Canonical string for Make.com HMAC: lead_id|campaign_id|email (fixed order; timestamp excluded). */
-function makeWebhookCanonicalString(body: MakeLeadPayload): string {
+export function makeWebhookCanonicalString(body: MakeLeadPayload): string {
   return [body.lead_id, body.campaign_id, body.email].join(MAKE_WEBHOOK_HMAC_SEP);
 }
 
-export function signMakePayload(
-  body: MakeLeadPayload,
-  secret: string
-): MakeLeadPayload & { signature: string } {
+export type SignedMakeLeadPayload = MakeLeadPayload & {
+  /** Exact UTF-8 string that was HMAC-signed — hash this in Make instead of re-concatenating fields. */
+  canonical: string;
+  signature: string;
+};
+
+export function signMakePayload(body: MakeLeadPayload, secret: string): SignedMakeLeadPayload {
   const canonical = makeWebhookCanonicalString(body);
   const signature = createHmac("sha256", secret).update(canonical, "utf8").digest("hex");
-  return { ...body, signature };
+  return { ...body, canonical, signature };
 }
 
-/** Recompute HMAC from payload fields (excludes `signature`) and compare in constant time. */
+/** Recompute HMAC from payload fields (excludes `signature` / `canonical`) and compare in constant time. */
 export function verifyMakePayloadSignature(
-  received: MakeLeadPayload & { signature: string },
+  received: SignedMakeLeadPayload,
   secret: string
 ): boolean {
-  const { signature, ...rest } = received;
+  const { signature, canonical: _canonical, ...rest } = received;
   const expected = signMakePayload(rest, secret).signature;
   return safeCompareToken(signature, expected);
 }
@@ -54,7 +57,7 @@ export const MAKE_WEBHOOK_POST_MS = 10_000;
 
 export async function postSignedMakeLead(
   url: string,
-  body: MakeLeadPayload & { signature: string },
+  body: SignedMakeLeadPayload,
   timeoutMs = MAKE_WEBHOOK_POST_MS
 ): Promise<{ status: number; text: string }> {
   const ac = new AbortController();
