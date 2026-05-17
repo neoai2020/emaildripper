@@ -5,20 +5,8 @@ import { parseRandomizationSettings } from "@/lib/randomization-settings";
 import { buildFeelsHumanSchedule } from "@/lib/scheduler/feelsHuman";
 import { validateEmailMx } from "@/lib/mx/lookup";
 import { assertValidIanaTimeZone } from "@/lib/timezone";
+import { loadSuppressedSet } from "@/lib/leads/bulkUpsert";
 import { isValidEmailSyntax, normalizeEmail } from "@/lib/validation/email";
-
-const SUPPRESSION_IN_CHUNK = 400;
-
-async function loadSuppressedSet(sb: SupabaseClient, emails: string[]): Promise<Set<string>> {
-  const suppressedSet = new Set<string>();
-  for (let i = 0; i < emails.length; i += SUPPRESSION_IN_CHUNK) {
-    const slice = emails.slice(i, i + SUPPRESSION_IN_CHUNK);
-    const { data, error } = await sb.from("suppression_list").select("email").in("email", slice);
-    if (error) throw new Error(error.message);
-    for (const row of data ?? []) suppressedSet.add(row.email as string);
-  }
-  return suppressedSet;
-}
 
 export type ScheduleComputeInput = Pick<
   LaunchCampaignInput,

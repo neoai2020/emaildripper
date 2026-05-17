@@ -31,17 +31,25 @@ export default async function MasterLeadsPage({ searchParams }: { searchParams: 
 
   let query = sb
     .from("master_leads")
-    .select("id,email,first_name,last_name,source_label,first_seen_at")
+    .select("id,email,first_name,last_name,source_label,first_seen_at", { count: "exact" })
     .order("first_seen_at", { ascending: false })
     .limit(200);
   if (q) query = query.ilike("email", `%${q}%`);
 
-  const { data: rows, error } = await query;
+  const { data: rows, error, count: totalCount } = await query;
   if (error) throw new Error(error.message);
+
+  const total = totalCount ?? rows?.length ?? 0;
+  const shown = rows?.length ?? 0;
+  const description = q
+    ? `${total} matching lead${total === 1 ? "" : "s"} — showing up to ${shown}.`
+    : total > shown
+      ? `${total.toLocaleString()} leads in database — showing ${shown} most recent.`
+      : `${total.toLocaleString()} lead${total === 1 ? "" : "s"} in database.`;
 
   return (
     <>
-      <PageHeader title="Master leads" description="Every email ever imported. Up to 200 most recent addresses are shown here." />
+      <PageHeader title="Master leads" description={description} />
 
       <form method="get" className="mb-6 flex max-w-md flex-wrap items-end gap-2">
         <div className="grid flex-1 gap-1">

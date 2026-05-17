@@ -109,6 +109,10 @@ export default async function CampaignDetailPage({
       })) ?? [];
   }
 
+  const totalLeads = Number(c.total_leads ?? 0);
+  const shownLeads = leads?.length ?? 0;
+  const showLeadCountBanner = totalLeads > shownLeads && !q;
+
   return (
     <>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
@@ -177,6 +181,12 @@ export default async function CampaignDetailPage({
           ) : null}
         </div>
       </div>
+
+      {showLeadCountBanner ? (
+        <p className="mb-3 text-sm text-muted-foreground">
+          {totalLeads.toLocaleString()} leads in this campaign — showing first {shownLeads} by schedule time.
+        </p>
+      ) : null}
 
       <form method="get" className="mb-4 flex max-w-md flex-wrap items-end gap-2">
         <div className="grid flex-1 gap-1">

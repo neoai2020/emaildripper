@@ -85,11 +85,13 @@ export function CampaignWizard({
   const [validation, setValidation] = useState<WizardLeadValidation | null>(null);
   const [validating, setValidating] = useState(false);
   const [scheduleLeadCap, setScheduleLeadCap] = useState(1);
+  const [capLimitAcknowledged, setCapLimitAcknowledged] = useState(false);
   const [dryRunResult, setDryRunResult] = useState<Awaited<ReturnType<typeof dryRunScheduleWizardAction>> | null>(
     null
   );
 
   const cloneAppliedRef = useRef(false);
+  const userAdjustedCapRef = useRef(false);
 
   useEffect(() => {
     setStartsAtLocal((cur) => (cur ? cur : defaultStartsAtLocal()));
@@ -131,6 +133,11 @@ export function CampaignWizard({
   }, [step, tag, selectedAr, name]);
 
   useEffect(() => {
+    userAdjustedCapRef.current = false;
+    setCapLimitAcknowledged(false);
+  }, [emailsText]);
+
+  useEffect(() => {
     if (step !== 3) return;
     const handle = setTimeout(() => {
       void (async () => {
@@ -148,7 +155,8 @@ export function CampaignWizard({
           setValidation(v);
           setScheduleLeadCap((cur) => {
             if (v.eligible <= 0) return 1;
-            if (cur <= 0 || cur > v.eligible) return v.eligible;
+            if (!userAdjustedCapRef.current) return v.eligible;
+            if (cur > v.eligible) return v.eligible;
             return cur;
           });
         } catch {
@@ -177,6 +185,10 @@ export function CampaignWizard({
     }
     return out;
   }, [emailsText]);
+
+  const eligibleCount = validation?.eligible ?? parsedEmails.length;
+  const effectiveCap = Math.min(scheduleLeadCap, Math.max(1, eligibleCount));
+  const capBelowEligible = validation != null && validation.eligible > 0 && effectiveCap < validation.eligible;
 
   function applyTemplate(id: string) {
     setTemplateId(id);
@@ -299,8 +311,7 @@ export function CampaignWizard({
       return;
     }
     const startsAtIso = new Date(startsAtLocal).toISOString();
-    const eligible = validation?.eligible ?? parsedEmails.length;
-    const cap = Math.min(scheduleLeadCap, Math.max(1, eligible));
+    const cap = effectiveCap;
     startTransition(async () => {
       try {
         const r = await dryRunScheduleWizardAction({
@@ -346,11 +357,16 @@ export function CampaignWizard({
       toast.error("Tag is required.");
       return;
     }
+    if (capBelowEligible && !capLimitAcknowledged) {
+      toast.error(
+        `You are scheduling only ${effectiveCap} of ${validation!.eligible} eligible leads. Check the confirmation box to continue.`
+      );
+      return;
+    }
     const startsAtIso = new Date(startsAtLocal).toISOString();
     startTransition(async () => {
       try {
-        const eligible = validation?.eligible ?? parsedEmails.length;
-        const cap = Math.min(scheduleLeadCap, Math.max(1, eligible));
+        const cap = effectiveCap;
         const { campaignId } = await createPreviewCampaignAction({
           name: name.trim(),
           sourceLabel: sourceLabel.trim() || null,
@@ -576,7 +592,11 @@ export function CampaignWizard({
                   min={1}
                   max={validation.eligible}
                   value={Math.min(scheduleLeadCap, validation.eligible)}
-                  onChange={(e) => setScheduleLeadCap(Number(e.target.value))}
+                  onChange={(e) => {
+                    userAdjustedCapRef.current = true;
+                    setScheduleLeadCap(Number(e.target.value));
+                    setCapLimitAcknowledged(false);
+                  }}
                   className="w-full accent-primary"
                 />
                 <p className="text-xs text-muted-foreground">
@@ -674,6 +694,45 @@ export function CampaignWizard({
               </div>
               <Input id="c-tag" value={tag} onChange={(e) => setTag(e.target.value)} className="font-mono text-xs" />
             </div>
+            <div className="rounded-lg border border-border/80 bg-muted/20 p-4 text-sm">
+              <p className="font-medium text-foreground">Lead summary</p>
+              <ul className="mt-2 list-inside list-disc space-y-1 text-muted-foreground">
+                <li>
+                  Pasted (valid syntax):{" "}
+                  <span className="font-mono text-foreground">{parsedEmails.length}</span>
+                </li>
+                <li>
+                  Eligible after checks:{" "}
+                  <span className="font-mono text-foreground">{eligibleCount}</span>
+                </li>
+                <li>
+                  Will be scheduled:{" "}
+                  <span className="font-mono text-foreground">{effectiveCap}</span>
+                </li>
+              </ul>
+            </div>
+
+            {capBelowEligible ? (
+              <div className="space-y-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
+                <p className="text-sm font-medium text-amber-100">
+                  Only {effectiveCap} of {validation!.eligible} eligible leads will be scheduled. Most of your list
+                  will not be included in this campaign.
+                </p>
+                <label className="flex cursor-pointer items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={capLimitAcknowledged}
+                    onChange={(e) => setCapLimitAcknowledged(e.target.checked)}
+                    className="mt-0.5 size-4 accent-primary"
+                  />
+                  <span className="text-muted-foreground">
+                    I understand only {effectiveCap} lead{effectiveCap === 1 ? "" : "s"} will be added to this
+                    campaign.
+                  </span>
+                </label>
+              </div>
+            ) : null}
+
             <p className="text-xs text-muted-foreground">
               MX validation runs now; suppressed emails are removed before the preview is created.
             </p>

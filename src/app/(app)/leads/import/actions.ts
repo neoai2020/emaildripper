@@ -4,29 +4,20 @@ import { revalidatePath } from "next/cache";
 
 import { writeAuditLog } from "@/lib/audit";
 import { requireServiceSupabase } from "@/lib/db";
+import { chunkedMasterLeadUpsert } from "@/lib/leads/bulkUpsert";
 import { isValidEmailSyntax, normalizeEmail } from "@/lib/validation/email";
 
 export async function bulkUpsertMasterLeadsAction(raw: {
   emails: string[];
   sourceLabel: string | null;
-}): Promise<{ upserted: number }> {
-  const emails = Array.from(
-    new Set(raw.emails.map((e) => normalizeEmail(e)).filter((e) => isValidEmailSyntax(e)))
-  );
+}): Promise<{ upserted: number; droppedInvalid: number }> {
+  const uniqueNormalized = Array.from(new Set(raw.emails.map((e) => normalizeEmail(e))));
+  const emails = uniqueNormalized.filter((e) => isValidEmailSyntax(e));
+  const droppedInvalid = uniqueNormalized.length - emails.length;
   if (emails.length === 0) throw new Error("No valid emails.");
 
   const sb = requireServiceSupabase();
-  const rows = emails.map((email) => ({
-    email,
-    source_label: raw.sourceLabel?.trim() || null,
-  }));
-
-  const chunk = 500;
-  for (let i = 0; i < rows.length; i += chunk) {
-    const slice = rows.slice(i, i + chunk);
-    const { error } = await sb.from("master_leads").upsert(slice, { onConflict: "email" });
-    if (error) throw new Error(error.message);
-  }
+  await chunkedMasterLeadUpsert(sb, emails, raw.sourceLabel);
 
   await writeAuditLog({
     action: "master_leads_bulk_upsert",
@@ -36,5 +27,5 @@ export async function bulkUpsertMasterLeadsAction(raw: {
   });
 
   revalidatePath("/leads/master");
-  return { upserted: emails.length };
+  return { upserted: emails.length, droppedInvalid };
 }

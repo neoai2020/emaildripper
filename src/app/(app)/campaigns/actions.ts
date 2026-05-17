@@ -8,33 +8,10 @@ import { requireServiceSupabase } from "@/lib/db";
 import { launchCampaignSchema, type LaunchCampaignInput } from "@/lib/schemas/campaign";
 import { formatServerActionError } from "@/lib/server-action-error";
 import { computeCampaignSchedule } from "@/lib/campaign/computeSchedule";
+import { ensureMasterLeadIds, loadSuppressedSet } from "@/lib/leads/bulkUpsert";
 import { postSignedMakeLead, signMakePayload } from "@/lib/make-webhook";
 import { validateEmailMx } from "@/lib/mx/lookup";
 import { isValidEmailSyntax, normalizeEmail } from "@/lib/validation/email";
-
-async function ensureMasterLeadIds(
-  sb: ReturnType<typeof requireServiceSupabase>,
-  emails: string[],
-  sourceLabel?: string | null
-): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
-  const unique = Array.from(new Set(emails.map(normalizeEmail)));
-
-  const rows = unique.map((email) => ({
-    email,
-    source_label: sourceLabel ?? null,
-  }));
-
-  const { error: upErr } = await sb.from("master_leads").upsert(rows, { onConflict: "email" });
-  if (upErr) throw new Error(upErr.message);
-
-  const { data, error } = await sb.from("master_leads").select("id,email").in("email", unique);
-  if (error) throw new Error(error.message);
-  for (const row of data ?? []) {
-    map.set(row.email, row.id);
-  }
-  return map;
-}
 
 async function insertCampaignWithLeads(
   input: LaunchCampaignInput,
@@ -101,10 +78,15 @@ async function insertCampaignWithLeads(
   }));
 
   const chunk = 500;
-  for (let i = 0; i < leadRows.length; i += chunk) {
-    const slice = leadRows.slice(i, i + chunk);
-    const { error: insErr } = await sb.from("campaign_leads").insert(slice);
-    if (insErr) throw new Error(insErr.message);
+  try {
+    for (let i = 0; i < leadRows.length; i += chunk) {
+      const slice = leadRows.slice(i, i + chunk);
+      const { error: insErr } = await sb.from("campaign_leads").insert(slice);
+      if (insErr) throw new Error(insErr.message);
+    }
+  } catch (e) {
+    await sb.from("campaigns").delete().eq("id", campaignId);
+    throw e;
   }
 
   return { campaignId, leadCount: withMx.length };
@@ -605,8 +587,7 @@ export async function validateCampaignWizardLeadsAction(rawLines: string[]): Pro
   }
 
   const sb = requireServiceSupabase();
-  const { data: suppressedRows } = await sb.from("suppression_list").select("email").in("email", unique);
-  const suppressedSet = new Set((suppressedRows ?? []).map((r) => r.email as string));
+  const suppressedSet = await loadSuppressedSet(sb, unique);
   const notSuppressed = unique.filter((e) => !suppressedSet.has(e));
   const suppressed_sample = unique.filter((e) => suppressedSet.has(e)).slice(0, 8);
 

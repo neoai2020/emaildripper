@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState, useTransition } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Papa from "papaparse";
 import { toast } from "sonner";
 
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { isValidEmailSyntax, normalizeEmail } from "@/lib/validation/email";
 
 type Col = { key: string; label: string };
 
@@ -26,7 +28,7 @@ function ImportCheckSummaryCard({ result }: { result: Record<string, unknown> })
   const samples = Array.isArray(result.sample_eligible) ? (result.sample_eligible as string[]) : [];
   return (
     <div className="rounded-xl border border-border/80 bg-muted/20 p-4 text-sm">
-      <p className="font-medium text-foreground">Check results</p>
+      <p className="font-medium text-foreground">Check results (not saved yet)</p>
       <ul className="mt-3 list-inside list-disc space-y-1 text-muted-foreground">
         <li>Rows you pasted: {total}</li>
         <li>Valid-looking addresses: {validSyntax}</li>
@@ -51,6 +53,24 @@ export type CsvMappingOption = {
   field_map: Record<string, unknown>;
 };
 
+function extractEmailsFromRows(cols: Col[], rows: string[][], emailCol: string): string[] {
+  if (!emailCol || rows.length === 0) return [];
+  const idx = cols.findIndex((c) => c.key === emailCol);
+  if (idx < 0) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const r of rows) {
+    const cell = r[idx]?.trim() ?? "";
+    if (!cell) continue;
+    const e = normalizeEmail(cell.split(",")[0]?.trim() ?? cell);
+    if (!isValidEmailSyntax(e)) continue;
+    if (seen.has(e)) continue;
+    seen.add(e);
+    out.push(e);
+  }
+  return out;
+}
+
 export function CsvImportClient({ mappings }: { mappings: CsvMappingOption[] }) {
   const [text, setText] = useState("");
   const [cols, setCols] = useState<Col[]>([]);
@@ -60,6 +80,55 @@ export function CsvImportClient({ mappings }: { mappings: CsvMappingOption[] }) 
   const [checkResult, setCheckResult] = useState<Record<string, unknown> | null>(null);
   const [pending, startTransition] = useTransition();
   const [mappingId, setMappingId] = useState("");
+  const [lastSavedCount, setLastSavedCount] = useState<number | null>(null);
+  const parseDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const parseCsvFromText = useCallback((raw: string, silent = false): boolean => {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      setCols([]);
+      setRows([]);
+      setEmailCol("");
+      return false;
+    }
+    const res = Papa.parse<string[]>(trimmed, { header: false, skipEmptyLines: true });
+    if (res.errors.length > 0) {
+      if (!silent) toast.error(res.errors[0]?.message ?? "CSV parse error");
+      return false;
+    }
+    const data = (res.data as string[][]).filter((r) => r.some((c) => String(c).trim()));
+    if (data.length === 0) {
+      if (!silent) toast.error("No rows parsed.");
+      return false;
+    }
+    const header = data[0]!.map((h, i) => ({
+      key: `col_${i}`,
+      label: String(h || `Column ${i + 1}`).trim(),
+    }));
+    const body = data.slice(1).map((r) => header.map((_, i) => String(r[i] ?? "").trim()));
+    setCols(header);
+    setRows(body);
+    const guess = header.find((c) => /email|e-mail/i.test(c.label))?.key ?? header[0]!.key;
+    setEmailCol(guess);
+    if (!silent) toast.success(`${body.length} rows · ${header.length} columns`);
+    return true;
+  }, []);
+
+  useEffect(() => {
+    if (parseDebounceRef.current) clearTimeout(parseDebounceRef.current);
+    if (!text.trim()) {
+      setCols([]);
+      setRows([]);
+      setEmailCol("");
+      return;
+    }
+    parseDebounceRef.current = setTimeout(() => {
+      parseCsvFromText(text, true);
+    }, 400);
+    return () => {
+      if (parseDebounceRef.current) clearTimeout(parseDebounceRef.current);
+    };
+  }, [text, parseCsvFromText]);
 
   function applySavedMapping(id: string) {
     setMappingId(id);
@@ -95,34 +164,29 @@ export function CsvImportClient({ mappings }: { mappings: CsvMappingOption[] }) 
     toast.success(`Email column: ${match.label}`);
   }
 
-  const extracted = useMemo(() => {
-    if (!emailCol || rows.length === 0) return [];
-    const idx = cols.findIndex((c) => c.key === emailCol);
-    if (idx < 0) return [];
-    const out: string[] = [];
-    const seen = new Set<string>();
-    for (const r of rows) {
-      const cell = r[idx]?.trim() ?? "";
-      if (!cell) continue;
-      const e = cell.split(",")[0]?.trim() ?? cell;
-      if (!e.includes("@")) continue;
-      const lower = e.toLowerCase();
-      if (seen.has(lower)) continue;
-      seen.add(lower);
-      out.push(lower);
-    }
-    return out;
-  }, [cols, rows, emailCol]);
+  const extracted = useMemo(
+    () => extractEmailsFromRows(cols, rows, emailCol),
+    [cols, rows, emailCol]
+  );
 
-  const loadCsvText = useCallback((raw: string, label: string) => {
-    const bytes = new TextEncoder().encode(raw).length;
-    if (bytes > MAX_CSV_BYTES) {
-      toast.error(`CSV too large (max ${MAX_CSV_BYTES / (1024 * 1024)} MB).`);
-      return;
-    }
-    setText(raw);
-    toast.success(`${label} (${Math.round(bytes / 1024)} KB)`);
-  }, []);
+  const serverValidCount = useMemo(() => {
+    return Array.from(new Set(extracted.map((e) => normalizeEmail(e)).filter((e) => isValidEmailSyntax(e)))).length;
+  }, [extracted]);
+
+  const loadCsvText = useCallback(
+    (raw: string, label: string) => {
+      const bytes = new TextEncoder().encode(raw).length;
+      if (bytes > MAX_CSV_BYTES) {
+        toast.error(`CSV too large (max ${MAX_CSV_BYTES / (1024 * 1024)} MB).`);
+        return;
+      }
+      setText(raw);
+      setCheckResult(null);
+      parseCsvFromText(raw, true);
+      toast.success(`${label} loaded (${Math.round(bytes / 1024)} KB) — parsed automatically`);
+    },
+    [parseCsvFromText]
+  );
 
   async function onFileSelected(file: File | undefined | null) {
     if (!file) return;
@@ -135,22 +199,11 @@ export function CsvImportClient({ mappings }: { mappings: CsvMappingOption[] }) 
   }
 
   function parseCsv() {
-    const res = Papa.parse<string[]>(text, { header: false, skipEmptyLines: true });
-    const data = (res.data as string[][]).filter((r) => r.some((c) => String(c).trim()));
-    if (data.length === 0) {
-      toast.error("No rows parsed.");
+    if (!text.trim()) {
+      toast.error("Paste or upload CSV first.");
       return;
     }
-    const header = data[0]!.map((h, i) => ({
-      key: `col_${i}`,
-      label: String(h || `Column ${i + 1}`).trim(),
-    }));
-    const body = data.slice(1).map((r) => header.map((_, i) => String(r[i] ?? "").trim()));
-    setCols(header);
-    setRows(body);
-    const guess = header.find((c) => /email|e-mail/i.test(c.label))?.key ?? header[0]!.key;
-    setEmailCol(guess);
-    toast.success(`${body.length} rows · ${header.length} columns`);
+    parseCsvFromText(text, false);
   }
 
   function runChecks() {
@@ -168,7 +221,7 @@ export function CsvImportClient({ mappings }: { mappings: CsvMappingOption[] }) 
         const json = (await res.json()) as Record<string, unknown>;
         if (!res.ok || !json.ok) throw new Error(String(json.error ?? "Request failed"));
         setCheckResult(json);
-        toast.success("Validation complete");
+        toast.success("Validation complete — use Save to master list to write to the database");
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Check failed");
       }
@@ -176,17 +229,27 @@ export function CsvImportClient({ mappings }: { mappings: CsvMappingOption[] }) 
   }
 
   function upsert() {
-    if (extracted.length === 0) {
-      toast.error("Nothing to import.");
+    if (serverValidCount === 0) {
+      toast.error("Nothing to import — no valid email addresses in the selected column.");
       return;
+    }
+    const dropped = extracted.length - serverValidCount;
+    if (dropped > 0) {
+      toast.info(`${dropped} row(s) skipped — invalid email syntax after normalization.`);
     }
     startTransition(async () => {
       try {
-        const { upserted } = await bulkUpsertMasterLeadsAction({
+        const { upserted, droppedInvalid } = await bulkUpsertMasterLeadsAction({
           emails: extracted,
           sourceLabel: sourceLabel.trim() || null,
         });
-        toast.success(`Saved ${upserted} email address${upserted === 1 ? "" : "es"} to your master list (new or updated).`);
+        setLastSavedCount(upserted);
+        setCheckResult(null);
+        let msg = `Saved ${upserted} email address${upserted === 1 ? "" : "es"} to your master list.`;
+        if (droppedInvalid > 0) {
+          msg += ` (${droppedInvalid} invalid row${droppedInvalid === 1 ? "" : "s"} skipped)`;
+        }
+        toast.success(msg);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Import failed");
       }
@@ -221,18 +284,21 @@ export function CsvImportClient({ mappings }: { mappings: CsvMappingOption[] }) 
             void onFileSelected(f);
           }}
         />
-        Or drag-and-drop a CSV here (max 50 MB).
+        Or drag-and-drop a CSV here (max 50 MB). Files are parsed automatically.
       </div>
       <Textarea
         id="csv"
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => {
+          setText(e.target.value);
+          setCheckResult(null);
+        }}
         rows={10}
         className="font-mono text-xs"
         placeholder={"email,first name\nyou@example.com,Jane"}
       />
-      <Button type="button" onClick={parseCsv} disabled={pending || !text.trim()}>
-        Parse CSV
+      <Button type="button" onClick={parseCsv} disabled={pending || !text.trim()} variant="outline">
+        Re-parse CSV
       </Button>
 
       {cols.length > 0 ? (
@@ -273,21 +339,47 @@ export function CsvImportClient({ mappings }: { mappings: CsvMappingOption[] }) 
             <Input id="src" value={sourceLabel} onChange={(e) => setSourceLabel(e.target.value)} />
           </div>
           <p className="text-sm text-muted-foreground">
-            Extracted <span className="font-mono text-foreground">{extracted.length}</span> unique addresses using your
-            column choice.
+            Extracted <span className="font-mono text-foreground">{extracted.length}</span> unique valid addresses
+            {extracted.length !== serverValidCount ? (
+              <>
+                {" "}
+                (<span className="font-mono text-foreground">{serverValidCount}</span> will be saved)
+              </>
+            ) : null}
+            .
           </p>
+          {serverValidCount > 0 ? (
+            <p className="text-sm text-foreground">
+              Save will write <span className="font-mono">{serverValidCount}</span> address
+              {serverValidCount === 1 ? "" : "es"} to the master list.
+            </p>
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={runChecks} disabled={pending}>
               Run MX / suppression check
             </Button>
-            <Button type="button" onClick={upsert} disabled={pending}>
-              Save to master list
+            <Button type="button" onClick={upsert} disabled={pending || serverValidCount === 0}>
+              Save {serverValidCount > 0 ? serverValidCount : ""} to master list
             </Button>
           </div>
         </div>
       ) : null}
 
       {checkResult ? <ImportCheckSummaryCard result={checkResult} /> : null}
+
+      {lastSavedCount != null ? (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm">
+          <p className="font-medium text-foreground">
+            Last save: {lastSavedCount} address{lastSavedCount === 1 ? "" : "es"} in master list.
+          </p>
+          <p className="mt-2 text-muted-foreground">
+            <Link href="/leads/master" className="text-primary underline-offset-4 hover:underline">
+              View master leads
+            </Link>{" "}
+            (shows 200 most recent; full count on that page).
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }
