@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { signMakePayload, verifyMakePayloadSignature } from "@/lib/make-webhook";
+import {
+  sanitizeMakeCustomFields,
+  signMakePayload,
+  verifyMakePayloadSignature,
+} from "@/lib/make-webhook";
 
 describe("make-webhook HMAC", () => {
   const secret = "test-secret";
@@ -34,6 +38,33 @@ describe("make-webhook HMAC", () => {
   it("rejects wrong secret", () => {
     const signed = signMakePayload(body, secret);
     expect(verifyMakePayloadSignature(signed, "other")).toBe(false);
+  });
+
+  it("strips signing fields from custom_fields on outbound payload", () => {
+    const signed = signMakePayload(
+      {
+        ...body,
+        custom_fields: { tier: "gold", lead_id: "wrong", campaign_id: "wrong", signature: "wrong" },
+      },
+      secret
+    );
+    expect(signed.custom_fields).toEqual({ tier: "gold" });
+    expect(signed.lead_id).toBe("l1");
+    expect(signed.signature).toBe(
+      "18d7d38fcefa90765dc176bbe8d4d87a4d8681166d9b4e28dd123ffd4e283a76"
+    );
+  });
+
+  it("sanitizeMakeCustomFields removes reserved keys only", () => {
+    expect(
+      sanitizeMakeCustomFields({
+        tier: "gold",
+        lead_id: "x",
+        campaign_id: "y",
+        signature: "z",
+        canonical: "c",
+      })
+    ).toEqual({ tier: "gold" });
   });
 
   it("ignores timestamp when verifying", () => {

@@ -88,10 +88,13 @@ export default function HelpPage() {
               <ul className="list-inside list-disc space-y-1">
                 <li>One Make scenario per autoresponder row.</li>
                 <li>
-                  Verify HMAC before trusting JSON bodies: hash the{" "}
-                  <code className="text-foreground">canonical</code> field with your secret (
-                  <code className="text-foreground">sha256(1.canonical; &quot;hex&quot;; secret)</code>) and
-                  compare to <code className="text-foreground">signature</code>.
+                  Verify HMAC before trusting JSON bodies:{" "}
+                  <code className="text-foreground">
+                    sha256(1.lead_id + &quot;|&quot; + 1.campaign_id + &quot;|&quot; + 1.email; &quot;hex&quot;;
+                    secret)
+                  </code>{" "}
+                  must equal top-level <code className="text-foreground">signature</code> (map from webhook root,
+                  not custom_fields).
                 </li>
                 <li>Return non-success when your ESP rejects a lead so this app can retry with backoff.</li>
                 <li>Keep scenarios fast — pacing lives here.</li>

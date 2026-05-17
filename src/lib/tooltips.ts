@@ -134,7 +134,7 @@ export const TOOLTIPS = {
   },
   "ar.hmac": {
     title: "Webhook secret",
-    body: "Shared secret used to sign outbound JSON. Each webhook includes a canonical field (lead_id|campaign_id|email) — in Make, sha256(1.canonical; \"hex\"; secret) must equal 1.signature.",
+    body: "Shared secret used to sign outbound JSON (HMAC-SHA256 over lead_id|campaign_id|email). In Make: sha256(1.lead_id + \"|\" + 1.campaign_id + \"|\" + 1.email; \"hex\"; secret) must equal 1.signature. Use top-level fields, not custom_fields.",
   },
   "ar.dailyCap": {
     title: "Daily send cap",
