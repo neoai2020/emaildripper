@@ -19,7 +19,7 @@ describe("make-webhook HMAC", () => {
   it("accepts a valid signature", () => {
     const signed = signMakePayload(body, secret);
     expect(signed.signature).toBe(
-      "cd4ca88e70fd791fff711308c40ac0594653e6690276990ef62c85757b627f81"
+      "e44bb66eb2f6dbf42e4528dd34b53b98f9da7dc7399e255ad62abf3871ea9c3e"
     );
     expect(verifyMakePayloadSignature(signed, secret)).toBe(true);
   });

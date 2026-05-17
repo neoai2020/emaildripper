@@ -134,7 +134,7 @@ export const TOOLTIPS = {
   },
   "ar.hmac": {
     title: "Webhook secret",
-    body: "Shared secret used to sign outbound JSON (HMAC-SHA256 over lead_id | campaign_id | email | timestamp, with spaces around pipes). Mirror the same concat in Make before trusting the payload.",
+    body: "Shared secret used to sign outbound JSON (HMAC-SHA256 over lead_id|campaign_id|email|timestamp). Mirror the same concat in Make (plain pipes, no spaces) before trusting the payload.",
   },
   "ar.dailyCap": {
     title: "Daily send cap",

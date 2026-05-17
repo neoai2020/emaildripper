@@ -12,10 +12,10 @@ export type MakeLeadPayload = {
   timestamp: string;
 };
 
-/** Separator between HMAC fields — must match Make scenarios (`" | "` in concat). */
-export const MAKE_WEBHOOK_HMAC_SEP = " | ";
+/** Separator between HMAC fields — plain pipe, no spaces (must match Make `concat` modules). */
+export const MAKE_WEBHOOK_HMAC_SEP = "|";
 
-/** Canonical string for Make.com HMAC: lead_id, campaign_id, email, timestamp (fixed order). */
+/** Canonical string for Make.com HMAC: lead_id|campaign_id|email|timestamp (fixed order). */
 function makeWebhookCanonicalString(body: MakeLeadPayload): string {
   return [body.lead_id, body.campaign_id, body.email, body.timestamp].join(MAKE_WEBHOOK_HMAC_SEP);
 }
