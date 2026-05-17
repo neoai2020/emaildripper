@@ -12,9 +12,12 @@ export type MakeLeadPayload = {
   timestamp: string;
 };
 
-/** Canonical string for Make.com: four values, ASCII pipe, fixed order. */
+/** Separator between HMAC fields — must match Make scenarios (`" | "` in concat). */
+export const MAKE_WEBHOOK_HMAC_SEP = " | ";
+
+/** Canonical string for Make.com HMAC: lead_id, campaign_id, email, timestamp (fixed order). */
 function makeWebhookCanonicalString(body: MakeLeadPayload): string {
-  return `${body.lead_id}|${body.campaign_id}|${body.email}|${body.timestamp}`;
+  return [body.lead_id, body.campaign_id, body.email, body.timestamp].join(MAKE_WEBHOOK_HMAC_SEP);
 }
 
 export function signMakePayload(
