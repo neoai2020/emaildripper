@@ -37,8 +37,12 @@ export function verifyMakePayloadSignature(
   received: SignedMakeLeadPayload,
   secret: string
 ): boolean {
-  const { signature, canonical: _canonical, ...rest } = received;
-  const expected = signMakePayload(rest, secret).signature;
+  const { signature, email, first_name, last_name, custom_fields, campaign_id, campaign_tag, lead_id, attempt, timestamp } =
+    received;
+  const expected = signMakePayload(
+    { email, first_name, last_name, custom_fields, campaign_id, campaign_tag, lead_id, attempt, timestamp },
+    secret
+  ).signature;
   return safeCompareToken(signature, expected);
 }
 
