@@ -89,7 +89,7 @@ export default function HelpPage() {
                 <li>One Make scenario per autoresponder row.</li>
                 <li>
                   Verify HMAC before trusting JSON bodies (canonical string:{" "}
-                  <code className="text-foreground">lead_id|campaign_id|email|timestamp</code> — plain pipes, no
+                  <code className="text-foreground">lead_id|campaign_id|email</code> — plain pipes, no
                   spaces).
                 </li>
                 <li>Return non-success when your ESP rejects a lead so this app can retry with backoff.</li>

@@ -19,7 +19,7 @@ describe("make-webhook HMAC", () => {
   it("accepts a valid signature", () => {
     const signed = signMakePayload(body, secret);
     expect(signed.signature).toBe(
-      "e44bb66eb2f6dbf42e4528dd34b53b98f9da7dc7399e255ad62abf3871ea9c3e"
+      "18d7d38fcefa90765dc176bbe8d4d87a4d8681166d9b4e28dd123ffd4e283a76"
     );
     expect(verifyMakePayloadSignature(signed, secret)).toBe(true);
   });
@@ -33,5 +33,11 @@ describe("make-webhook HMAC", () => {
   it("rejects wrong secret", () => {
     const signed = signMakePayload(body, secret);
     expect(verifyMakePayloadSignature(signed, "other")).toBe(false);
+  });
+
+  it("ignores timestamp when verifying", () => {
+    const signed = signMakePayload(body, secret);
+    const tampered = { ...signed, timestamp: "2099-01-01T00:00:00.000Z" };
+    expect(verifyMakePayloadSignature(tampered, secret)).toBe(true);
   });
 });
